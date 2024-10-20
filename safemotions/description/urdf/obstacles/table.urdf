@@ -1,0 +1,25 @@
+<?xml version="1.0" ?>
+<robot name="main">
+  <link name="table_link">
+    <inertial>
+      <origin rpy="0 0 0" xyz="0 0 -0.18746"/>
+      <mass value="600"/>
+      <inertia ixx="152.284" ixy="0" ixz="0" iyy="207.558" iyz="0" izz="288.142"/>
+    </inertial>
+    <visual>
+      <origin rpy="0 0 1.5707963267948966" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="package://safemotions/description/meshes/obstacles/visual/table.dae"/>
+      </geometry>
+      <material name="grey">
+        <color rgba="0.3 0.3 0.3 1"/>
+      </material>
+    </visual>
+    <collision>
+      <origin rpy="0 0 0" xyz="0 0 -0.1"/>
+      <geometry>
+        <box size="1.2 1.6 0.2"/>
+      </geometry>
+    </collision>
+  </link>
+</robot>
