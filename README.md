@@ -2,6 +2,10 @@
 
 This repository contains the code used for our paper *Safe Reinforcement Learning of Robot Trajectories in the Presence of Moving Obstacles.*
 
+<div align='center'>
+    <img src="https://github.com/user-attachments/assets/c20f450c-15f8-4639-ab85-7663688cb9e7" width="750"/>
+</div>
+
 ## Installation
 
 Our code is implemented and tested using Python 3.8. The required dependencies can be installed by running:
