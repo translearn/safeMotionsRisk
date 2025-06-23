@@ -1,4 +1,7 @@
 # Safe Reinforcement Learning of Robot Trajectories in the Presence of Moving Obstacles 
+[![IEEE RAL 2024](https://img.shields.io/badge/IEEE_RAL-2024-%3C%3E)](https://ieeexplore.ieee.org/document/10738380)
+[![arXiv](https://img.shields.io/badge/arXiv-2411.05784-B31B1B)](https://arxiv.org/abs/2411.05784)
+[![GitHub issues](https://img.shields.io/github/issues/translearn/safemotionsRisk)](https://github.com/translearn/safeMotionsRisk/issues/)<br>
 
 This repository contains the code used for our paper *Safe Reinforcement Learning of Robot Trajectories in the Presence of Moving Obstacles.*
 
