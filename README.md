@@ -39,6 +39,102 @@ python safemotions/evaluate.py --checkpoint=task_networks/reaching_task/space/st
 python safemotions/evaluate.py --checkpoint=task_networks/reaching_task/ball/state_action --no_exploration --visualize_risk --use_gui
 ```
 
+## Training
+
+The training process involves three steps:
+
+1. Training of a backup policy using reinforcement learning
+2. Training of a risk estimator using supervised learning
+3. Training of a task policy using reinforcement learning
+
+The progress of each step can be observed using tensorboard:
+
+```bash
+tensorboard --logdir=path_to_training_logs
+```
+
+### Training of the backup policy
+
+The backup policy is trained on avoiding collisions. Once trained, it can be used to learn different task policies. 
+
+**Space environment**
+
+```bash
+python safemotions/train.py 
+--logdir=specify_path_for_training_logs
+--name=Backup_Space
+--acc_limit_factor=1.0 
+--action_max_punishment=0.4 
+--action_punishment_min_threshold=0.95 
+--batch_size_factor=8.0 
+--closest_point_safety_distance=0.01 
+--collision_avoidance_episode_early_termination_punishment=-15 
+--collision_avoidance_episode_termination_bonus=15 
+--collision_avoidance_kinematic_state_sampling_mode 
+--collision_avoidance_kinematic_state_sampling_probability=0.7 
+--collision_avoidance_low_acceleration_max_reward=0.0 
+--collision_avoidance_low_acceleration_threshold=1.0 
+--collision_avoidance_low_velocity_max_reward=0.0 
+--collision_avoidance_low_velocity_threshold=1.0 
+--collision_avoidance_mode 
+--collision_avoidance_moving_obstacles_max_reward_distance=0.6 
+--collision_avoidance_moving_obstacles_max_reward=3.0 
+--collision_avoidance_self_collision_max_reward_distance=0.05 
+--collision_avoidance_self_collision_max_reward=1.0 
+--collision_avoidance_static_obstacles_max_reward_distance=0.1 
+--collision_avoidance_static_obstacles_max_reward=1.0 
+--collision_avoidance_stay_in_state_probability=0.3 
+--collision_check_time=0.033  
+--episodes_per_simulation_reset=4000 
+--gamma=1.0 
+--hidden_layer_activation=swish 
+--iterations_per_checkpoint=50 
+--jerk_limit_factor=1.0 
+--last_layer_activation=tanh 
+--log_std_range="[-1.375, 0.0]" 
+--no_use_gae 
+--obs_planet_size_per_planet=2 
+--obstacle_scene=5 
+--online_trajectory_duration=2.0 
+--online_trajectory_time_step=0.1 
+--planet_mode 
+--planet_one_center="[-0.1, 0.0, 0.8]" 
+--planet_one_euler_angles="[0.35, 0, 0]" 
+--planet_one_period=5.0 
+--planet_one_radius_xy="[0.65, 0.8]" 
+--planet_two_center="[-0.1, 0, 0.8]" 
+--planet_two_euler_angles="[-0.35, 0, 0]" 
+--planet_two_radius_xy="[0.75, 0.8]" 
+--planet_two_time_shift=-2.0 
+--pos_limit_factor=1.0 
+--punish_action 
+--robot_scene=0 
+--solver_iterations=50 
+--starting_point_cartesian_range_scene=1 
+--target_link_offset="[0, 0, 0]" 
+--terminate_on_collision_with_moving_obstacle 
+--terminate_on_collision_with_static_obstacle 
+--terminate_on_self_collision 
+--torque_limit_factor=1.0 
+--use_controller_target_velocities 
+--vel_limit_factor=1.0 
+--time=500 
+```
+
+You can additionally specify the number of workers with --num_workers (e.g. --num_workers=12, typically the number of CPU cores minus one) and the number of GPUs with --num_gpus (e.g. --num_gpus=1).
+
+**Ball environment**
+
+tba
+
+### Training of the risk estimator
+
+tba
+
+### Training of the task policy
+
+tba
+
 
 ## Disclaimer
 
