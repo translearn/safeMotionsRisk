@@ -26,9 +26,6 @@ class RewardBase(ABC, SafeMotionsBase):
     ACTION_THRESHOLD = 0.9
     ACTION_MAX_PUNISHMENT = 1.0
 
-    ACTION_REWARD_PEAK = 0.95
-    ACTION_MAX_REWARD = 1.0
-
     # collision avoidance
     # 1. self-collision avoidance
     SELF_COLLISION_MAX_REWARD = 0.0
@@ -46,10 +43,6 @@ class RewardBase(ABC, SafeMotionsBase):
                  punish_action=False,
                  action_punishment_min_threshold=ACTION_THRESHOLD,
                  action_max_punishment=ACTION_MAX_PUNISHMENT,
-                 reward_action=False,
-                 action_reward_min_threshold=ACTION_THRESHOLD,
-                 action_reward_peak=ACTION_REWARD_PEAK,
-                 action_max_reward=ACTION_MAX_REWARD,
                  collision_avoidance_self_collision_max_reward=SELF_COLLISION_MAX_REWARD,
                  collision_avoidance_self_collision_max_reward_distance=SELF_COLLISION_MAX_REWARD_DISTANCE,
                  collision_avoidance_static_obstacles_max_reward=STATIC_OBSTACLES_COLLISION_MAX_REWARD,
@@ -66,11 +59,6 @@ class RewardBase(ABC, SafeMotionsBase):
         self._punish_action = punish_action
         self._action_punishment_min_threshold = action_punishment_min_threshold
         self._action_max_punishment = action_max_punishment
-
-        self._reward_action = reward_action
-        self._action_reward_min_threshold = action_reward_min_threshold
-        self._action_reward_peak = action_reward_peak
-        self._action_max_reward = action_max_reward
 
         self._collision_avoidance_self_collision_max_reward = collision_avoidance_self_collision_max_reward
         self._collision_avoidance_self_collision_max_reward_distance = \

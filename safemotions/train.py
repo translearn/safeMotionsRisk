@@ -169,14 +169,12 @@ def _make_env_config():
 
     env_config = {
         'experiment_name': args.name,
-        'm_prev': args.m_prev,
         'pos_limit_factor': args.pos_limit_factor,
         'vel_limit_factor': args.vel_limit_factor,
         'acc_limit_factor': args.acc_limit_factor,
         'jerk_limit_factor': args.jerk_limit_factor,
         'torque_limit_factor': args.torque_limit_factor,
         'action_mapping_factor': args.action_mapping_factor,
-        'set_highest_action_to_one': args.set_highest_action_to_one,
         'action_preprocessing_function': args.action_preprocessing_function,
         'normalize_reward_to_frequency': args.normalize_reward_to_frequency,
         'online_trajectory_duration': args.online_trajectory_duration,
@@ -186,10 +184,6 @@ def _make_env_config():
         'punish_action': args.punish_action,
         'action_punishment_min_threshold': args.action_punishment_min_threshold,
         'action_max_punishment': args.action_max_punishment,
-        'reward_action': args.reward_action,
-        'action_reward_min_threshold': args.action_reward_min_threshold,
-        'action_reward_peak': args.action_reward_peak,
-        'action_max_reward': args.action_max_reward,
         'punish_adaptation': args.punish_adaptation,
         'adaptation_max_punishment': args.adaptation_max_punishment,
         'punish_end_min_distance': args.punish_end_min_distance,
@@ -226,6 +220,7 @@ def _make_env_config():
         'target_point_reward_factor': args.target_point_reward_factor,
         'target_point_use_actual_position': args.target_point_use_actual_position,
         'normalize_reward_to_initial_target_point_distance': args.normalize_reward_to_initial_target_point_distance,
+        'ball_machine_mode': args.ball_machine_mode,
         'use_moving_objects': args.use_moving_objects,
         'moving_object_sequence': args.moving_object_sequence,
         'moving_object_area_center': args.moving_object_area_center,
@@ -302,6 +297,7 @@ def _make_env_config():
         'max_resampling_attempts': args.max_resampling_attempts,
         'logging_level': args.logging_level,
         'episodes_per_simulation_reset': args.episodes_per_simulation_reset,
+        'use_gui': args.use_gui
     }
 
     if hasattr(klimits, '__version__'):
@@ -360,14 +356,12 @@ if __name__ == '__main__':
     parser.add_argument('--num_workers', type=int, default=None)
     parser.add_argument('--num_threads_per_worker', type=int, default=1)
     parser.add_argument('--num_gpus', type=int, default=None)
-    parser.add_argument('--m_prev', type=int, default=0)
     parser.add_argument('--pos_limit_factor', type=float, default=1.0)
     parser.add_argument('--vel_limit_factor', type=float, default=1.0)
     parser.add_argument('--acc_limit_factor', type=float, default=1.0)
     parser.add_argument('--jerk_limit_factor', type=float, default=1.0)
     parser.add_argument('--torque_limit_factor', type=float, default=1.0)
     parser.add_argument('--action_mapping_factor', type=float, default=1.0)
-    parser.add_argument('--set_highest_action_to_one', action='store_true', default=False)
     parser.add_argument('--action_preprocessing_function', default=None, choices=['tanh'])
     parser.add_argument('--normalize_reward_to_frequency', dest='normalize_reward_to_frequency', action='store_true',
                         default=False)
@@ -379,10 +373,6 @@ if __name__ == '__main__':
     parser.add_argument('--punish_action', action='store_true', default=False)
     parser.add_argument('--action_punishment_min_threshold', type=float, default=0.9)
     parser.add_argument('--action_max_punishment', type=float, default=0.5)
-    parser.add_argument('--reward_action', action='store_true', default=False)
-    parser.add_argument('--action_reward_min_threshold', type=float, default=0.9)
-    parser.add_argument('--action_reward_peak', type=float, default=0.95)
-    parser.add_argument('--action_max_reward', type=float, default=1.0)
     parser.add_argument('--punish_adaptation', action='store_true', default=False)
     parser.add_argument('--adaptation_max_punishment', type=float, default=1.0)
     parser.add_argument('--punish_end_min_distance', action='store_true', default=False)
@@ -419,6 +409,7 @@ if __name__ == '__main__':
     parser.add_argument('--target_link_offset', type=json.loads, default=None)
     parser.add_argument('--target_point_reward_factor', type=float, default=1.0)
     parser.add_argument('--normalize_reward_to_initial_target_point_distance', action='store_true', default=False)
+    parser.add_argument('--ball_machine_mode', action='store_true', default=False)
     # moving object settings
     parser.add_argument('--use_moving_objects', action='store_true', default=False)
     parser.add_argument('--moving_object_sequence', type=int, default=0)
@@ -517,6 +508,7 @@ if __name__ == '__main__':
     parser.add_argument('--gamma', type=float, default=0.99)
     parser.add_argument('--seed', type=int, default=None)
     parser.add_argument('--episodes_per_simulation_reset', type=int, default=None)
+    parser.add_argument('--use_gui', action='store_true', default=False)
 
     args = parser.parse_args()
 

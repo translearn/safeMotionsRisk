@@ -460,7 +460,6 @@ class SafeMotionsBase(gym.Env):
         self._end_min_distance = None
         self._end_max_torque = None  # for (optional) reward calculations
         self._punish_end_max_torque = False  # set in rewards.py
-        self._spline_debug_line_buffer = None
 
         self._moving_object_hit_robot_or_obstacle = None
         self._moving_object_missed_robot = None
@@ -895,7 +894,7 @@ class SafeMotionsBase(gym.Env):
                                        physicsClientId=self._gui_client_id)
             # set shadowMapResolution to 4096 when running the code without a dedicated GPU and to 16384 otherwise
 
-    def reset(self, spline_name=None, repeated_reset=False):
+    def reset(self, repeated_reset=False):
         self._episode_counter += 1
         if self._episode_counter == 1 and self._gui_client_id is not None:
             p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1, physicsClientId=self._gui_client_id)
@@ -924,7 +923,7 @@ class SafeMotionsBase(gym.Env):
 
         duration_multiplier = None
 
-        self._trajectory_manager.reset(get_new_trajectory=get_new_setup, spline_name=spline_name,
+        self._trajectory_manager.reset(get_new_trajectory=get_new_setup,
                                        duration_multiplier=duration_multiplier)
 
 

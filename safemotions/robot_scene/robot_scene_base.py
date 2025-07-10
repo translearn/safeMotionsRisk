@@ -61,7 +61,6 @@ class RobotSceneBase(object):
                  target_point_sequence=0,
                  target_point_reached_reward_bonus=0.0,
                  target_point_use_actual_position=False,
-                 use_splines=False,
                  use_moving_objects=False,
                  moving_object_sequence=0,
                  moving_object_area_center=None,
@@ -161,19 +160,15 @@ class RobotSceneBase(object):
         self._robot_scene = robot_scene
         self._shared_link_names = []
 
-        self._spline_joint_mask = None
-
         robot_urdf = None
         robot_base_position = [0, 0, 0]
         robot_base_orientation = (0, 0, 0, 1)
 
-        if robot_scene == 0:
-            self._num_robots = 1
-            robot_urdf = "robot"
-
         self._plane_z_offset = 0
 
-        if robot_scene <= 2:
+        if robot_scene == 0:
+            self._num_robots = 1
+            robot_urdf = "robot_ball_machine" if self._ball_machine_mode else "robot"
             self._plane_z_offset = -0.94
             self._robot_name = "iiwa7"
 
@@ -342,9 +337,6 @@ class RobotSceneBase(object):
         self._num_manip_joints = len(self._manip_joint_indices)
         self._default_position = [0.0] * self._num_manip_joints
 
-        if self._spline_joint_mask is None:
-            self._spline_joint_mask = np.array([True] * self._num_manip_joints)
-
         self._link_name_list = []
 
         for i in range(p.getNumJoints(self._robot_id)):
@@ -414,7 +406,6 @@ class RobotSceneBase(object):
                                target_point_sequence=target_point_sequence,
                                target_point_reached_reward_bonus=target_point_reached_reward_bonus,
                                target_point_use_actual_position=target_point_use_actual_position,
-                               use_splines=use_splines,
                                target_link_name=self._target_link_name,
                                target_link_offset=target_link_offset,
                                moving_object_sequence=moving_object_sequence,
@@ -606,7 +597,7 @@ class RobotSceneBase(object):
         return self._ball_machine_mode
 
     @property
-    def ball_machine_ball_radius(self):
+    def ball_radius(self):
         return 0.038
 
     @property
@@ -716,10 +707,6 @@ class RobotSceneBase(object):
     @property
     def terminate_on_collision_with_moving_obstacle(self):
         return self._terminate_on_collision_with_moving_obstacle
-
-    @property
-    def spline_joint_mask(self):
-        return self._spline_joint_mask
 
     @property
     def no_target_link_coloring(self):

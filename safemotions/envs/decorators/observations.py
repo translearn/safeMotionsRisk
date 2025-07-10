@@ -45,12 +45,10 @@ class SafeObservation(ABC, SafeMotionsBase):
 
     def __init__(self,
                  *vargs,
-                 m_prev=0,
                  obs_planet_size_per_planet=1,  # 1: time step, 2: xy position in orbit plane, 3: xyz in global space
                  **kwargs):
         super().__init__(*vargs, **kwargs)
 
-        self._m_prev = m_prev
         self._next_joint_acceleration_mapping = None
 
         obs_current_size = 3  # pos, vel, acc
@@ -107,13 +105,11 @@ class SafeObservation(ABC, SafeMotionsBase):
         else:
             obs_human_size = 0
 
-        self._observation_size = self._m_prev * self._num_manip_joints \
-            + obs_current_size * self._num_manip_joints  \
+        self._observation_size = obs_current_size * self._num_manip_joints  \
             + obs_target_point_size + obs_moving_object_size + obs_planet_size \
             + obs_human_size
 
-        self._kinematic_observation_size = self._m_prev * self._num_manip_joints \
-            + obs_current_size * self._num_manip_joints
+        self._kinematic_observation_size = obs_current_size * self._num_manip_joints
 
         self._kinematic_observation = None
 
@@ -121,8 +117,7 @@ class SafeObservation(ABC, SafeMotionsBase):
                                      dtype=np.float32)
 
         if self._risk_config is not None:
-            risk_observation_size = self._m_prev * self._num_manip_joints \
-                                    + obs_current_size * self._num_manip_joints \
+            risk_observation_size = obs_current_size * self._num_manip_joints \
                                     + obs_moving_object_size \
                                     + obs_planet_size \
                                     + obs_human_size
@@ -211,23 +206,16 @@ class SafeObservation(ABC, SafeMotionsBase):
                                                                  sample_time,
                                                                  self._trajectory_time_step)[-1]
 
-        prev_joint_accelerations = self._get_m_prev_joint_values(self._m_prev - 1, key='accelerations')
-        if self._m_prev > 0:
-            prev_joint_accelerations.append(self._get_generated_trajectory_point(-1, key='accelerations'))
-
-        prev_joint_accelerations_rel, curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, \
-            curr_joint_acceleration_rel_obs, moving_object_rel_obs, planet_rel_obs, \
-            human_rel_obs = \
-            self._get_shared_observation_components(prev_joint_accelerations=prev_joint_accelerations,
-                                                    curr_joint_position=next_joint_position,
-                                                    curr_joint_velocity=next_joint_velocity,
-                                                    curr_joint_acceleration=next_joint_acceleration,
-                                                    no_side_effects=True,  # prevent side effects normally triggered by
-                                                    # receiving the observation, e.g. sampling of new moving objects
-                                                    forecast_non_kinematic_components=forecast_non_kinematic_components)
+        curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, curr_joint_acceleration_rel_obs, \
+            moving_object_rel_obs, planet_rel_obs, human_rel_obs = self._get_shared_observation_components(
+            curr_joint_position=next_joint_position,
+            curr_joint_velocity=next_joint_velocity,
+            curr_joint_acceleration=next_joint_acceleration,
+            no_side_effects=True,
+            # prevent side effects normally triggered by receiving the observation, e.g. sampling of new moving objects
+            forecast_non_kinematic_components=forecast_non_kinematic_components)
 
         next_risk_observation = self._compose_and_clip_risk_observation(
-            prev_joint_accelerations_rel=prev_joint_accelerations_rel,
             curr_joint_position_rel_obs=curr_joint_position_rel_obs,
             curr_joint_velocity_rel_obs=curr_joint_velocity_rel_obs,
             curr_joint_acceleration_rel_obs=curr_joint_acceleration_rel_obs,
@@ -237,26 +225,23 @@ class SafeObservation(ABC, SafeMotionsBase):
 
         return next_risk_observation
 
-    def get_kinematic_observation_components(self, prev_joint_accelerations, curr_joint_position, curr_joint_velocity,
+    def get_kinematic_observation_components(self, curr_joint_position, curr_joint_velocity,
                                              curr_joint_acceleration):
-        prev_joint_accelerations_rel = [normalize_joint_values(p, self._robot_scene.max_accelerations)
-                                        for p in prev_joint_accelerations]
+
         curr_joint_position_rel_obs = list(_normalize_joint_values_min_max(curr_joint_position,
                                                                            self.pos_limits_min_max))
         curr_joint_velocity_rel_obs = normalize_joint_values(curr_joint_velocity, self._robot_scene.max_velocities)
         curr_joint_acceleration_rel_obs = normalize_joint_values(curr_joint_acceleration,
                                                                  self._robot_scene.max_accelerations)
 
-        return prev_joint_accelerations_rel, curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, \
-            curr_joint_acceleration_rel_obs
+        return curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, curr_joint_acceleration_rel_obs
 
-    def _get_shared_observation_components(self, prev_joint_accelerations, curr_joint_position, curr_joint_velocity,
+    def _get_shared_observation_components(self, curr_joint_position, curr_joint_velocity,
                                            curr_joint_acceleration, forecast_non_kinematic_components=False,
                                            no_side_effects=False):
 
-        prev_joint_accelerations_rel, curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, \
-            curr_joint_acceleration_rel_obs = self.get_kinematic_observation_components(prev_joint_accelerations,
-                                                                                        curr_joint_position,
+        curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, \
+            curr_joint_acceleration_rel_obs = self.get_kinematic_observation_components(curr_joint_position,
                                                                                         curr_joint_velocity,
                                                                                         curr_joint_acceleration)
 
@@ -316,24 +301,21 @@ class SafeObservation(ABC, SafeMotionsBase):
                     self._robot_scene.obstacle_wrapper.human.step()
                     human_rel_obs.extend(list(self._robot_scene.obstacle_wrapper.human.kinematic_observation_forecast))
 
-        return prev_joint_accelerations_rel, curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, \
+        return curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, \
             curr_joint_acceleration_rel_obs, moving_object_rel_obs, planet_rel_obs, \
             human_rel_obs
 
     def _get_observation(self):
-        prev_joint_accelerations = self._get_m_prev_joint_values(self._m_prev, key='accelerations')
         curr_joint_position = self._get_generated_trajectory_point(-1)
         curr_joint_velocity = self._get_generated_trajectory_point(-1, key='velocities')
         curr_joint_acceleration = self._get_generated_trajectory_point(-1, key='accelerations')
 
-        prev_joint_accelerations_rel, curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, \
+        curr_joint_position_rel_obs, curr_joint_velocity_rel_obs, \
             curr_joint_acceleration_rel_obs, moving_object_rel_obs, planet_rel_obs, \
             human_rel_obs = \
-            self._get_shared_observation_components(prev_joint_accelerations=prev_joint_accelerations,
-                                                    curr_joint_position=curr_joint_position,
+            self._get_shared_observation_components(curr_joint_position=curr_joint_position,
                                                     curr_joint_velocity=curr_joint_velocity,
                                                     curr_joint_acceleration=curr_joint_acceleration)
-
 
         # target point for reaching tasks
         target_point_rel_obs = []
@@ -353,10 +335,8 @@ class SafeObservation(ABC, SafeMotionsBase):
             target_point_rel_obs = target_point_rel_obs + list(target_point_active_obs)
             # to indicate if the target point is active (1.0) or inactive (0.0); the list is empty if not required
 
-        prev_joint_accelerations_rel_obs = [item for sublist in prev_joint_accelerations_rel for item in sublist]
-
-        observation_not_clipped = np.array(prev_joint_accelerations_rel_obs
-                                           + curr_joint_position_rel_obs + curr_joint_velocity_rel_obs
+        observation_not_clipped = np.array(curr_joint_position_rel_obs
+                                           + curr_joint_velocity_rel_obs
                                            + curr_joint_acceleration_rel_obs
                                            + target_point_rel_obs
                                            + moving_object_rel_obs
@@ -370,7 +350,6 @@ class SafeObservation(ABC, SafeMotionsBase):
         if self._risk_config is not None:
 
             self._risk_observation = self._compose_and_clip_risk_observation(
-                prev_joint_accelerations_rel=prev_joint_accelerations_rel,
                 curr_joint_position_rel_obs=curr_joint_position_rel_obs,
                 curr_joint_velocity_rel_obs=curr_joint_velocity_rel_obs,
                 curr_joint_acceleration_rel_obs=curr_joint_acceleration_rel_obs,
@@ -432,22 +411,13 @@ class SafeObservation(ABC, SafeMotionsBase):
 
         return observation, info
 
-    def _get_m_prev_joint_values(self, m, key):
-
-        m_prev_joint_values = []
-
-        for i in range(m+1, 1, -1):
-            m_prev_joint_values.append(self._get_generated_trajectory_point(-i, key))
-
-        return m_prev_joint_values
-
-    def _compose_and_clip_risk_observation(self, prev_joint_accelerations_rel, curr_joint_position_rel_obs,
+    def _compose_and_clip_risk_observation(self, curr_joint_position_rel_obs,
                                            curr_joint_velocity_rel_obs,
                                            curr_joint_acceleration_rel_obs,
                                            moving_object_rel_obs, planet_rel_obs, human_rel_obs):
         risk_observation_not_clipped = \
-            np.array([item for sublist in prev_joint_accelerations_rel for item in sublist]
-                     + curr_joint_position_rel_obs + curr_joint_velocity_rel_obs
+            np.array(curr_joint_position_rel_obs
+                     + curr_joint_velocity_rel_obs
                      + curr_joint_acceleration_rel_obs
                      + moving_object_rel_obs
                      + planet_rel_obs

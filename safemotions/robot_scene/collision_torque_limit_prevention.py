@@ -335,7 +335,7 @@ class ObstacleWrapperBase:
         zero_height_time, _ = Ball.get_target_height_time(
             initial_height=max_initial_height,
             initial_z_speed=-self._robot_scene.moving_object_speed_meter_per_second,
-            target_height=self._robot_scene.ball_machine_ball_radius,
+            target_height=self._robot_scene.ball_radius,
             no_update_steps=True)
 
         min_speed = -self._robot_scene.moving_object_speed_meter_per_second - 9.81 * zero_height_time
@@ -1817,7 +1817,7 @@ class ObstacleWrapperSim(ObstacleWrapperBase):
                             initial_height=moving_object_release_point[2],
                             initial_z_speed=initial_speed_vector[2],
                             target_height=self._moving_object_invalid_target_link_point_position_min_max[1][2]
-                            + self._robot_scene.ball_machine_ball_radius,
+                            + self._robot_scene.ball_radius,
                             update_time_step=self._update_time_step)
 
                     hit_time_invalid_area_bottom, hit_time_invalid_area_bottom_update_steps = \
@@ -1825,7 +1825,7 @@ class ObstacleWrapperSim(ObstacleWrapperBase):
                             initial_height=moving_object_release_point[2],
                             initial_z_speed=initial_speed_vector[2],
                             target_height=self._moving_object_invalid_target_link_point_position_min_max[0][2]
-                            + self._robot_scene.ball_machine_ball_radius,
+                            + self._robot_scene.ball_radius,
                             update_time_step=self._update_time_step)
 
                     ball_position_top = \
@@ -1864,7 +1864,7 @@ class ObstacleWrapperSim(ObstacleWrapperBase):
                                       initial_speed_vector=initial_speed_vector,
                                       update_time_step=self._update_time_step,
                                       update_steps_per_action=self._obstacle_client_update_steps_per_action,
-                                      radius=self._robot_scene.ball_machine_ball_radius,
+                                      radius=self._robot_scene.ball_radius,
                                       update_position_in_obstacle_client=False,
                                       ball_behind_the_robot_x_value=
                                       self._moving_object_behind_the_robot_x_value,
@@ -1892,7 +1892,7 @@ class ObstacleWrapperSim(ObstacleWrapperBase):
             hit_time_table, hit_time_table_update_steps = Ball.get_target_height_time(
                 initial_height=moving_object_dict["pos"][2],
                 initial_z_speed=moving_object_dict["initial_speed_vector"][2],
-                target_height=self._robot_scene.ball_machine_ball_radius,
+                target_height=self._robot_scene.ball_radius,
                 update_time_step=self._update_time_step)
 
             # check if the ball x and y coordinates are within the table area
@@ -1908,7 +1908,7 @@ class ObstacleWrapperSim(ObstacleWrapperBase):
             hit_time_ground, hit_time_ground_update_steps = Ball.get_target_height_time(
                 initial_height=moving_object_dict["pos"][2],
                 initial_z_speed=moving_object_dict["initial_speed_vector"][2],
-                target_height=self._robot_scene.plane_z_offset + self._robot_scene.ball_machine_ball_radius,
+                target_height=self._robot_scene.plane_z_offset + self._robot_scene.ball_radius,
                 update_time_step=self._update_time_step)
 
             obstacle_hit_data = {'obstacle_hit_index': -1,
@@ -2622,12 +2622,6 @@ class ObstacleWrapperSim(ObstacleWrapperBase):
                 if self._visual_mode:
                     for j in range(len(self._moving_object_fade_out_list[i])):
                         self._moving_object_fade_out_list[i][j].update(visual_mode=True)
-
-                    visual_update_index = None
-                    if len(self._moving_object_list[i]) > 0 and not self._moving_object_active_list[i]:
-                        visual_update_index = -1
-                    elif len(self._moving_object_list[i]) > 1:
-                        visual_update_index = -2
 
         if self._robot_scene.planet_mode:
             if self._planet_list:

@@ -74,7 +74,7 @@ class TrajectoryManager(object):
     def trajectory_length(self, val):
         self._trajectory_length = val
 
-    def reset(self, get_new_trajectory=True, spline_name=None, duration_multiplier=None):
+    def reset(self, get_new_trajectory=True, duration_multiplier=None):
         if get_new_trajectory:
 
             self._trajectory_start_position, self._trajectory_start_velocity, self._trajectory_start_acceleration \
