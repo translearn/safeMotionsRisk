@@ -53,7 +53,7 @@ The progress of each step can be observed using tensorboard:
 tensorboard --logdir=path_to_training_logs
 ```
 
-### Training of the backup policy
+### 1. Training of the backup policy
 
 The backup policy is trained on avoiding collisions. Once trained, it can be used to learn different task policies. 
 For the training commands below, you can additionally specify the number of workers with --num_workers 
@@ -92,11 +92,32 @@ python safemotions/evaluate.py --checkpoint=backup_networks/space --no_explorati
 python safemotions/evaluate.py --checkpoint=backup_networks/ball --no_exploration --use_gui
 ```
 
-### Training of the risk estimator
+### 2. Training of the risk estimator
+
+The first step towards training the risk estimator is to generate training data.
+Subsequently, a risk network can be trained via supervised learning. 
+
+#### Generation of a dataset for training
+
+**Example for the space environment**
+```bash
+python safemotions/evaluate.py --checkpoint=backup_networks/space --evaluation_dir=specify_path_for_risk_training_data --collision_avoidance_kinematic_state_sampling_probability=0.5 --collision_avoidance_stay_in_state_probability=1.0 --online_trajectory_duration=1000 --random_agent --risk_state_config=RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP_AND_BACKUP_TRAJECTORY --risk_store_ground_truth --risk_ground_truth_episodes_per_file=5 --risk_ignore_estimation_probability=0.35 --risk_state_deterministic_backup_trajectory --episodes=10000
+```
+
+**Example for the ball environment**
+```bash
+python safemotions/evaluate.py --checkpoint=backup_networks/ball --evaluation_dir=specify_path_for_risk_training_data --collision_avoidance_kinematic_state_sampling_probability=0.5 --collision_avoidance_stay_in_state_probability=1.0 --online_trajectory_duration=1000 --random_agent --risk_state_config=RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP_AND_BACKUP_TRAJECTORY --risk_store_ground_truth --risk_ground_truth_episodes_per_file=5 --risk_ignore_estimation_probability=0.35 --risk_state_deterministic_backup_trajectory --episodes=10000
+```
+
+The dataset generation can be accelerated by specifying the number of parallel workers with --num_workers=N. 
+The data is stored in a subfolder of the directory specified by --evaluation_dir.
+
+
+#### Training via supervised learning
 
 tba
 
-### Training of the task policy
+### 3. Training of the task policy
 
 tba
 

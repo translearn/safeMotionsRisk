@@ -202,9 +202,9 @@ if __name__ == '__main__':
 
     # copy config file from data dir to log_dir if available
 
-    config_file_path = os.path.join(args.data_dir, "config.json")
+    config_file_path = os.path.join(args.data_dir, "risk_config.json")
     if os.path.isfile(config_file_path):
-        destination_path = os.path.join(log_dir, "config.json")
+        destination_path = os.path.join(log_dir, "risk_config.json")
         shutil.copy(config_file_path, destination_path)
 
         with open(destination_path, 'r') as f:

@@ -51,6 +51,12 @@ RENDERER = {'opengl': 0,
             'cpu': 2,
             'imagegrab': 3}
 
+RISK_STATE_CONFIG = {'RISK_CHECK_CURRENT_STATE': 0,
+                     'RISK_CHECK_NEXT_STATE_KINEMATIC_FORECASTING': 1,
+                     'RISK_CHECK_NEXT_STATE_FULL_FORECASTING': 2,
+                     'RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP': 3,
+                     'RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP_AND_BACKUP_TRAJECTORY': 4}
+
 METRIC_OPS = ['sum', 'average', 'max', 'min']
 
 
@@ -332,10 +338,22 @@ if __name__ == '__main__':
     parser.add_argument('--moving_object_no_random_initial_position', action='store_true', default=False)
     # end of moving object settings
     # collision avoidance settings
+    parser.add_argument('--collision_avoidance_kinematic_state_sampling_probability', type=float, default=None)
+    parser.add_argument('--collision_avoidance_stay_in_state_probability', type=float, default=None)
     parser.add_argument('--collision_avoidance_new_state_sample_time_range', type=json.loads, default=None)
     # end of collision avoidance settings
     # risk settings
+    parser.add_argument('--risk_config_dir', type=str, default=None)
+    parser.add_argument('--risk_threshold', type=float, default=None)
+    parser.add_argument("--risk_state_config", default=None,
+                        choices=['RISK_CHECK_CURRENT_STATE', 'RISK_CHECK_NEXT_STATE_KINEMATIC_FORECASTING',
+                                 'RISK_CHECK_NEXT_STATE_FULL_FORECASTING', 'RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP',
+                                 'RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP_AND_BACKUP_TRAJECTORY'])
+    parser.add_argument('--risk_state_backup_trajectory_steps', type=int, default=None)
+    parser.add_argument('--risk_state_deterministic_backup_trajectory', action='store_true', default=False)
     parser.add_argument('--risk_store_ground_truth', action='store_true', default=False)
+    parser.add_argument('--risk_ground_truth_episodes_per_file', type=int, default=None)
+    parser.add_argument('--risk_ignore_estimation_probability', type=float, default=0.0)
     parser.add_argument('--visualize_risk', action='store_true', default=False)
     # end of risk settings
     parser.add_argument('--torque_limit_factor', type=float, default=None)
@@ -528,6 +546,14 @@ if __name__ == '__main__':
     if args.moving_object_no_random_initial_position:
         env_config['moving_object_random_initial_position'] = False
 
+    if args.collision_avoidance_kinematic_state_sampling_probability is not None:
+        env_config['collision_avoidance_kinematic_state_sampling_probability'] = \
+            args.collision_avoidance_kinematic_state_sampling_probability
+
+    if args.collision_avoidance_stay_in_state_probability is not None:
+        env_config['collision_avoidance_stay_in_state_probability'] = \
+            args.collision_avoidance_stay_in_state_probability
+
     if args.collision_avoidance_new_state_sample_time_range is not None:
         env_config['collision_avoidance_new_state_sample_time_range'] = \
             args.collision_avoidance_new_state_sample_time_range
@@ -535,8 +561,38 @@ if __name__ == '__main__':
     if args.no_link_coloring:
         env_config['no_link_coloring'] = True
 
+    if args.risk_config_dir is not None:
+        env_config['risk_config_dir'] = args.risk_config_dir
+
+    if args.risk_threshold is not None:
+        env_config['risk_threshold'] = args.risk_threshold
+
+    if args.risk_state_config is not None:
+        env_config['risk_state_config'] = RISK_STATE_CONFIG[args.risk_state_config]
+
+    if args.risk_state_backup_trajectory_steps is not None:
+        env_config['risk_state_backup_trajectory_steps'] = args.risk_state_backup_trajectory_steps
+
+    if args.risk_state_deterministic_backup_trajectory:
+        env_config['risk_state_deterministic_backup_trajectory'] = True
+
     if args.risk_store_ground_truth:
         env_config['risk_store_ground_truth'] = True
+
+    if args.risk_ground_truth_episodes_per_file is not None:
+        env_config['risk_ground_truth_episodes_per_file'] = args.risk_ground_truth_episodes_per_file
+
+    if args.risk_ignore_estimation_probability is not None:
+        env_config['risk_ignore_estimation_probability'] = args.risk_ignore_estimation_probability
+
+    if env_config['risk_store_ground_truth'] and 'risk_config_dir' not in env_config or \
+            env_config['risk_config_dir'] is None \
+            and args.risk_state_config == 'RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP_AND_BACKUP_TRAJECTORY':
+        # use network at checkpoint_path to generate risk data
+        # create risk_config for that purpose
+        env_config["risk_config"] = {"action_size": None,
+                                     "checkpoint": checkpoint_path,
+                                     "observation_size": None}
 
     if args.visualize_risk:
         env_config['visualize_risk'] = True

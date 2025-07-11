@@ -1,0 +1,5 @@
+{
+    "action_size": 7,
+    "checkpoint": "backup_networks/ball/checkpoint/checkpoint",
+    "observation_size": 27
+}

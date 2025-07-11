@@ -168,6 +168,7 @@ class SafeMotionsBase(gym.Env):
                  collision_avoidance_stay_in_state_probability=0.3,
                  collision_avoidance_new_state_sample_time_range=None,
                  always_use_collision_avoidance_starting_point_sampling=False,   # even without collision avoidance mode
+                 risk_config=None,
                  risk_config_dir=None,
                  risk_threshold=None,
                  risk_state_config=RISK_CHECK_CURRENT_STATE,
@@ -375,10 +376,10 @@ class SafeMotionsBase(gym.Env):
         self._human_network_collision_avoidance_stay_in_state_probability = \
             human_network_collision_avoidance_stay_in_state_probability
 
-        self._risk_config = None
+        self._risk_config = risk_config
         self._risk_observation = None
         self._backup_agent = None
-        if self._risk_config_dir is not None:
+        if self._risk_config_dir is not None or self._risk_config is not None:
             self._load_risk_config()
 
         self._physic_clients_dict = physic_clients_dict
@@ -487,9 +488,7 @@ class SafeMotionsBase(gym.Env):
         self._risk_network_use_state_and_action = None
         self._risk_network_first_risky_action_step = None
         self._risk_ground_truth_dict = None
-        if self._risk_config_dir is not None:
-            self._init_risk_network_and_backup_agent()
-
+        if self._risk_config is not None:
             if self._risk_store_ground_truth:
                 self._risk_ground_truth_dict = defaultdict(list)
 
@@ -500,14 +499,30 @@ class SafeMotionsBase(gym.Env):
         self._recursive_copy_keys = ["_robot_scene", "_trajectory_manager"]
 
     def _load_risk_config(self):
-        if not os.path.isdir(self._risk_config_dir):
-            self._risk_config_dir = os.path.join(current_dir, "trained_networks", self._risk_config_dir)
-        config_file_path = os.path.join(self._risk_config_dir, "config.json")
-        if os.path.isfile(config_file_path):
-            with open(config_file_path, 'r') as f:
-                self._risk_config = json.load(f)
-        else:
-            raise FileNotFoundError("Could not find config file {}.".format(config_file_path))
+        if self._risk_config is None:
+            if not os.path.isdir(self._risk_config_dir):
+                self._risk_config_dir = os.path.join(current_dir, "trained_networks", self._risk_config_dir)
+            risk_config_file_path = os.path.join(self._risk_config_dir, "risk_config.json")
+            if os.path.isfile(risk_config_file_path):
+                with open(risk_config_file_path, 'r') as f:
+                    self._risk_config = json.load(f)
+            else:
+                raise FileNotFoundError("Could not find config file {}.".format(risk_config_file_path))
+
+        # adjust checkpoint path in risk config if needed
+        backup_checkpoint_path = self._risk_config["checkpoint"] if os.path.isfile(self._risk_config["checkpoint"]) \
+            else os.path.join(current_dir, "trained_networks", self._risk_config["checkpoint"])
+
+        # load env config from params.json
+        backup_checkpoint_config_file_path = os.path.join(os.path.dirname(os.path.dirname(backup_checkpoint_path)),
+                                                   "params.json")
+
+        if not os.path.isfile(backup_checkpoint_config_file_path):
+            raise FileNotFoundError("Could not find checkpoint params file {}.".format(
+                backup_checkpoint_config_file_path))
+
+        with open(backup_checkpoint_config_file_path, 'r') as f:
+            self._risk_config["config"] = json.load(f)
 
         # overwrite relevant env parameters based on the env_config provided by the risk network
         overwrite_parameters = ["planet_mode", "planet_one_center", "planet_one_radius_xy",
@@ -533,7 +548,7 @@ class SafeMotionsBase(gym.Env):
 
         for parameter in error_parameters:
             if parameter in self._risk_config["config"]["env_config"]:
-                env_parameter_name = "_{}".format(parameter) if parameter is not "robot_scene" else "_robot_scene_index"
+                env_parameter_name = "_{}".format(parameter) if parameter != "robot_scene" else "_robot_scene_index"
                 env_parameter = getattr(self, env_parameter_name)
                 if env_parameter != self._risk_config["config"]["env_config"][parameter]:
                     raise ValueError("The {} parameter of the risk network does not match with the environment "
@@ -604,11 +619,10 @@ class SafeMotionsBase(gym.Env):
                           lambda config_args: RiskDummyEnv(**config_args))
 
         ray.init(dashboard_host="0.0.0.0", include_dashboard=False, ignore_reinit_error=True)
-
-        cls = rollout.get_trainable_cls(self._risk_config["run"])
-
+        cls = rollout.get_trainable_cls("PPO")
         dummy_config = self._risk_config["config"].copy()
         dummy_config["env"] = RiskDummyEnv.__name__
+
         if "seed" in dummy_config:
             dummy_config["seed"] = None
         dummy_config["num_workers"] = 0
@@ -618,10 +632,9 @@ class SafeMotionsBase(gym.Env):
 
         self._backup_agent = cls(env=RiskDummyEnv.__name__, config=dummy_config)
 
-        if not os.path.isfile(self._risk_config["checkpoint"]):
-            self._risk_config["checkpoint"] = os.path.join(current_dir, "trained_networks",
-                                                           self._risk_config["checkpoint"] )
-        self._backup_agent.restore(self._risk_config["checkpoint"])
+        backup_checkpoint_path = self._risk_config["checkpoint"] if os.path.isfile(self._risk_config["checkpoint"]) \
+            else os.path.join(current_dir, "trained_networks", self._risk_config["checkpoint"])
+        self._backup_agent.restore(backup_checkpoint_path)
 
     def _init_physic_clients(self):
         self._num_physic_clients = 0
@@ -1432,6 +1445,15 @@ class SafeMotionsBase(gym.Env):
                         self._pid)), 'w') as file:
 
                     data_frame.to_csv(path_or_buf=file)
+
+        # store risk config if it does not exist yet
+        risk_config_file_path = os.path.join(self._evaluation_dir, "risk_config.json")
+        if not os.path.isfile(risk_config_file_path):
+            risk_config_export = self._risk_config.copy()
+            risk_config_export.pop('config', None)  # do not export backup checkpoint config
+            with open(risk_config_file_path, 'w') as f:
+                f.write(json.dumps(risk_config_export, sort_keys=True))
+                f.flush()
 
         self._risk_ground_truth_dict = defaultdict(list)
 

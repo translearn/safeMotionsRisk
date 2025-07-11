@@ -122,10 +122,15 @@ class SafeObservation(ABC, SafeMotionsBase):
                                     + obs_planet_size \
                                     + obs_human_size
 
+            if self._risk_config["observation_size"] is None:
+                self._risk_config["observation_size"] = risk_observation_size
+
             if risk_observation_size != self._risk_config["observation_size"]:
                 raise ValueError("The observation size of the risk network ({}) does not match with the "
                                  "configuration of the environment ({}).".format(
                                     self._risk_config["observation_size"], risk_observation_size))
+
+            self._init_risk_network_and_backup_agent()
 
         logging.info("Observation size: " + str(self._observation_size))
 
