@@ -585,11 +585,10 @@ if __name__ == '__main__':
     if args.risk_ignore_estimation_probability is not None:
         env_config['risk_ignore_estimation_probability'] = args.risk_ignore_estimation_probability
 
-    if env_config['risk_store_ground_truth'] and 'risk_config_dir' not in env_config or \
-            env_config['risk_config_dir'] is None \
+    if ('risk_store_ground_truth' in env_config and env_config['risk_store_ground_truth']) and \
+            ('risk_config_dir' not in env_config or env_config['risk_config_dir'] is None) \
             and args.risk_state_config == 'RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP_AND_BACKUP_TRAJECTORY':
-        # use network at checkpoint_path to generate risk data
-        # create risk_config for that purpose
+        # use network at checkpoint_path to generate risk data and create risk_config for that purpose
         env_config["risk_config"] = {"action_size": None,
                                      "checkpoint": checkpoint_path,
                                      "observation_size": None}

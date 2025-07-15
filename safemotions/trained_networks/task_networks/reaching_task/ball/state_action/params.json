@@ -102,7 +102,7 @@
     "ray_version": "1.4.1",
     "reward_action": false,
     "risk_check_initial_backup_trajectory": true,
-    "risk_config_dir": "risk_networks/state_action/ball/reaching_task",
+    "risk_config_dir": "risk_networks/state_action/ball",
     "risk_ground_truth_episodes_per_file": null,
     "risk_ignore_estimation_probability": 0.0,
     "risk_state_backup_trajectory_steps": null,

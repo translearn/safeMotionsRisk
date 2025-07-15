@@ -1,0 +1,420 @@
+<?xml version="1.0"?>
+<robot name="human">
+    <link name="world"/>
+        <joint name="root_joint" type="fixed">
+        <parent link="world"/>
+        <child link="shoes"/>
+        <origin rpy="0 -1.570796327 0" xyz="0 0 0.052"/>
+    </joint>
+    <link name="shoes">
+        <inertial>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.024031929671764" ixy="0.0" ixx="0.024031929671764" iyy="0.024031929671764" />
+            <mass value="13.795380592346" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/shoes.obj" />
+            </geometry>
+            <material name="black">
+                <color rgba="0.075 0.075 0.075 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/shoes.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="lower_legs_joint" type="fixed">
+        <parent link="shoes" />
+        <child link="lower_legs" />
+        <origin xyz="0.226045 -0.000026 0.065428" rpy="3.063469 4.675216 -3.063484" />
+    </joint>
+    <link name="lower_legs">
+        <inertial>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.00801064632833" ixy="0.0" ixx="0.00801064632833" iyy="0.00801064632833" />
+            <mass value="4.5984616279602" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/lower_legs.obj" />
+            </geometry>
+            <material name="dark_gray">
+                <color rgba="0.243137255 0.22745098 0.231372549 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/lower_legs.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="upper_legs_joint" type="fixed">
+        <parent link="lower_legs" />
+        <child link="upper_legs" />
+        <origin xyz="0.005358 -0.000019 -0.395960" rpy="3.141559 3.048088 0.000046" />
+    </joint>
+    <link name="upper_legs">
+        <inertial>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.00801064632833" ixy="0.0" ixx="0.00801064632833" iyy="0.00801064632833" />
+            <mass value="4.5984616279602" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/upper_legs.obj" />
+            </geometry>
+            <material name="dark_gray">
+                <color rgba="0.243137255 0.22745098 0.231372549 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/upper_legs.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="body_joint" type="fixed">
+        <parent link="upper_legs" />
+        <child link="body" />
+        <origin xyz="0.008874 -0.000555 -0.471846" rpy="-3.141499 3.135304 3.137044" />
+    </joint>
+    <link name="body">
+        <inertial>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.00801064632833" ixy="0.0" ixx="0.00801064632833" iyy="0.00801064632833" />
+            <mass value="4.5984616279602" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/body.dae" />
+            </geometry>
+            <material name="green">
+                <color rgba="0.039215686 0.447058824 0.4 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/body.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="head_joint" type="fixed">
+        <axis xyz="0 0 1" />
+        <parent link="body" />
+        <child link="head" />
+        <origin xyz="0.047869 0.000109 -0.387776" rpy="0.000137 3.204324 -3.139991" />
+    </joint>
+    <link name="head">
+        <inertial>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.044059336185455" ixy="0.0" ixx="0.044059336185455" iyy="0.044059336185455" />
+            <mass value="25.291988372803" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/head.obj" />
+            </geometry>
+            <material name="skin">
+                <color rgba="0.952941176 0.764705882 0.607843137 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/head.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="upper_arm_flexion_joint_r0" type="revolute">
+        <axis xyz="0 0 1"/>
+        <limit effort="240" lower="-0.5" upper="1.2" velocity="1.710422666954443"/>
+        <parent link="body"/>
+        <child link="upper_arm_dummy_0_r0"/>
+        <origin xyz="0 -0.210366 -0.175144" rpy="0.000137 3.204324 -3.139991" />
+        <dynamics damping="0.5"/>
+    </joint>
+    <link name="upper_arm_dummy_0_r0">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <mass value="0.00"/>
+            <inertia ixx="0.0" ixy="0" ixz="0" iyy="0.0" iyz="0" izz="0.0"/>
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <sphere radius="0.00001"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <sphere radius="0.00001"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="upper_arm_adduction_joint_r0" type="revolute">
+        <parent link="upper_arm_dummy_0_r0"/>
+        <child link="upper_arm_dummy_1_r0"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="-1 0 0"/>
+        <limit effort="240" lower="-1.4" upper="0.1" velocity="1.710422666954443"/>
+        <dynamics damping="0.5"/>
+    </joint>
+    <link name="upper_arm_dummy_1_r0">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <mass value="0.00"/>
+            <inertia ixx="0.0" ixy="0" ixz="0" iyy="0.0" iyz="0" izz="0.0"/>
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <sphere radius="0.00001"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <sphere radius="0.00001"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="upper_arm_rotation_joint_r0" type="revolute">
+        <parent link="upper_arm_dummy_1_r0"/>
+        <child link="upper_arm_r0"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 -1 0"/>
+        <limit effort="240" lower="-0.2" upper="1.5708" velocity="1.710422666954443"/>
+        <dynamics damping="0.5"/>
+    </joint>
+    <link name="upper_arm_r0">
+        <inertial>
+            <origin xyz="0.000000 0.000000 -0.18" rpy="-3.141593 3.141593 -3.141593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.004005323164165" ixy="0.0" ixx="0.004005323164165" iyy="0.004005323164165" />
+            <mass value="2.2992308139801" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 -0.18" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/left_upper_arm.dae" />
+            </geometry>
+            <material name="green">
+                <color rgba="0.039215686 0.447058824 0.4 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 -0.18" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/left_upper_arm.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="forearm_joint_r0" type="revolute">
+        <axis xyz="1 0 0" />
+        <limit effort="240" lower="-2.6179938316345" upper="0.087266445159912" velocity="1.710422666954443" />
+        <parent link="upper_arm_r0" />
+        <child link="forearm_r0" />
+        <origin xyz="0.001 0.004 -0.276004" rpy="3.110507 3.158808 -1.535590" />
+    </joint>
+    <link name="forearm_r0">
+        <inertial>
+            <origin xyz="0.000000 0.000000 -0.1900000" rpy="-3.141593 3.141593 -3.041593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.00801064632833" ixy="0.0" ixx="0.00801064632833" iyy="0.00801064632833" />
+            <mass value="4.0" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 -0.1900000" rpy="-3.141593 3.141593 -3.241593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/left_forearm.dae" />
+            </geometry>
+            <material name="green">
+                <color rgba="0.039215686 0.447058824 0.4 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 -0.190000" rpy="-3.141593 3.141593 -3.241593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/left_forearm.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="hand_joint_r0" type="fixed">
+        <parent link="forearm_r0" />
+        <child link="hand_r0" />
+        <origin xyz="0 0 -0.19" rpy="0 0 0" />
+    </joint>
+    <link name="hand_r0">
+        <inertial>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.241593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.00801064632833" ixy="0.0" ixx="0.00801064632833" iyy="0.00801064632833" />
+            <mass value="0.5984616279602" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/left_hand.dae" />
+            </geometry>
+            <material name="skin_2">
+                <color rgba="1.0 0.847058824 0.721568627 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/left_hand.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="upper_arm_flexion_joint_r1" type="revolute">
+        <parent link="body"/>
+        <child link="upper_arm_dummy_0_r1"/>
+        <origin xyz="-0.000 0.210776 -0.18" rpy="0.000137 3.204337 -3.139991"/>
+        <axis xyz="0 0 1"/>
+        <limit effort="240" lower="-1.2" upper="0.5" velocity="1.710422666954443"/>
+        <dynamics damping="0.5"/>
+    </joint>
+    <link name="upper_arm_dummy_0_r1">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <mass value="0.00"/>
+            <inertia ixx="0.0" ixy="0" ixz="0" iyy="0.0" iyz="0" izz="0.0"/>
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <sphere radius="0.00001"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <sphere radius="0.00001"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="upper_arm_adduction_joint_r1" type="revolute">
+        <parent link="upper_arm_dummy_0_r1"/>
+        <child link="upper_arm_dummy_1_r1"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="1 0 0"/>
+        <limit effort="240" lower="-1.4" upper="0.1" velocity="1.710422666954443"/>
+        <dynamics damping="0.5"/>
+    </joint>
+    <link name="upper_arm_dummy_1_r1">
+        <inertial>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <mass value="0.00"/>
+            <inertia ixx="0.0" ixy="0" ixz="0" iyy="0.0" iyz="0" izz="0.0"/>
+        </inertial>
+        <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <sphere radius="0.00001"/>
+            </geometry>
+        </visual>
+        <collision>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry>
+                <sphere radius="0.00001"/>
+            </geometry>
+        </collision>
+    </link>
+    <joint name="upper_arm_rotation_joint_r1" type="revolute">
+        <parent link="upper_arm_dummy_1_r1"/>
+        <child link="upper_arm_r1"/>
+        <origin rpy="0 0 0" xyz="0 0 0"/>
+        <axis xyz="0 1 0"/>
+        <limit effort="240" lower="-1.5708" upper="0.2" velocity="1.710422666954443"/>
+        <dynamics damping="0.5"/>
+    </joint>
+    <link name="upper_arm_r1">
+        <inertial>
+            <origin xyz="0.000000 0.000000 -0.18000" rpy="-3.141593 3.141593 -3.141593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.004005323164165" ixy="0.0" ixx="0.004005323164165" iyy="0.004005323164165" />
+            <mass value="2.2992308139801" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 -0.18000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/right_upper_arm.dae" />
+            </geometry>
+            <material name="green">
+                <color rgba="0.039215686 0.447058824 0.4 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 -0.180000" rpy="-3.141593 3.141593 -3.141593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/right_upper_arm.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="forearm_joint_r1" type="revolute">
+        <axis xyz="-1 0 0" />
+        <limit effort="240" lower="-2.6179938316345" upper="0.087266445159912" velocity="1.710422666954443" />
+        <parent link="upper_arm_r1" />
+        <child link="forearm_r1" />
+        <origin xyz="0.00 -0.005 -0.276027" rpy="-3.109365 3.149818 1.581327" />
+    </joint>
+    <link name="forearm_r1">
+        <inertial>
+            <origin xyz="0.000000 0.000000 -0.190000" rpy="-3.141593 3.141593 -3.141593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.00801064632833" ixy="0.0" ixx="0.00801064632833" iyy="0.00801064632833" />
+            <mass value="4.0" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 -0.190000" rpy="-3.141593 3.141593 -3.041593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/right_forearm.dae" />
+            </geometry>
+            <material name="green">
+                <color rgba="0.039215686 0.447058824 0.4 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 -0.190000" rpy="-3.141593 3.141593 -3.041593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/right_forearm.obj" />
+            </geometry>
+        </collision>
+    </link>
+    <joint name="hand_joint_r1" type="fixed">
+        <parent link="forearm_r1" />
+        <child link="hand_r1" />
+        <origin xyz="0 0 -0.19" rpy="0 0 0" />
+    </joint>
+    <link name="hand_r1">
+        <inertial>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.141593" />
+            <inertia ixz="0.0" iyz="0.0" izz="0.00801064632833" ixy="0.0" ixx="0.00801064632833" iyy="0.00801064632833" />
+            <mass value="0.5984616279602" />
+        </inertial>
+        <visual>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.041593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/visual/right_hand.dae" />
+            </geometry>
+            <material name="skin_2">
+                <color rgba="1.0 0.847058824 0.721568627 1"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.000000 0.000000 0.000000" rpy="-3.141593 3.141593 -3.041593" />
+            <geometry>
+                <mesh filename="package://safemotions/description/meshes/human/collision/right_hand.obj" />
+            </geometry>
+        </collision>
+    </link>
+</robot>

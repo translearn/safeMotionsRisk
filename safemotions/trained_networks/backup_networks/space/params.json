@@ -9,7 +9,6 @@
     "acc_limit_factor_braking": 1.0,
     "action_mapping_factor": 1.0,
     "action_max_punishment": 0.4,
-    "action_max_reward": 1.0,
     "action_preprocessing_function": null,
     "action_punishment_min_threshold": 0.95,
     "activate_obstacle_collisions": false,

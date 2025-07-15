@@ -34,9 +34,15 @@ python safemotions/evaluate.py --checkpoint=task_networks/reaching_task/space/st
 **Ball environment, state-action-based risk**
 
 
-
 ```bash
 python safemotions/evaluate.py --checkpoint=task_networks/reaching_task/ball/state_action --no_exploration --visualize_risk --use_gui
+```
+
+**Human environment, state-action-based risk**
+
+
+```bash
+python safemotions/evaluate.py --checkpoint=task_networks/reaching_task/human/state_action --no_exploration --visualize_risk --use_gui
 ```
 
 ## Training
@@ -74,6 +80,13 @@ python safemotions/train.py --logdir=specify_path_for_training_logs --name=Backu
 python safemotions/train.py --logdir=specify_path_for_training_logs --name=Backup_Ball --acc_limit_factor=1.0 --action_max_punishment=0.4 --action_punishment_min_threshold=0.95  --batch_size_factor=8.0 --closest_point_safety_distance=0.01 --collision_avoidance_episode_early_termination_punishment=-15 --collision_avoidance_episode_termination_bonus=15  --collision_avoidance_kinematic_state_sampling_mode --collision_avoidance_kinematic_state_sampling_probability=0.7 --collision_avoidance_low_acceleration_max_reward=0.0 --collision_avoidance_low_acceleration_threshold=1.0 --collision_avoidance_low_velocity_max_reward=0.0 --collision_avoidance_low_velocity_threshold=1.0 --collision_avoidance_mode --collision_avoidance_moving_obstacles_max_reward_distance=0.6 --collision_avoidance_moving_obstacles_max_reward=3.0 --collision_avoidance_self_collision_max_reward_distance=0.05 --collision_avoidance_self_collision_max_reward=1.0 --collision_avoidance_static_obstacles_max_reward_distance=0.1 --collision_avoidance_static_obstacles_max_reward=1.0 --collision_avoidance_stay_in_state_probability=0.3 --collision_check_time=0.033 --episodes_per_simulation_reset=4000 --gamma=1.0 --hidden_layer_activation=swish --iterations_per_checkpoint=50 --jerk_limit_factor=1.0 --last_layer_activation=tanh --log_std_range="[-1.375, 0.0]" --moving_object_sphere_center="[0, 0, 0.5]" --moving_object_sphere_radius=2.5 --moving_object_sphere_height_min_max="[-0.5, 0.5]" --moving_object_sphere_angle_min_max="[0, 6.2831]" --moving_object_speed_meter_per_second=6.0 --moving_object_check_invalid_target_link_point_positions --moving_object_random_initial_position --no_use_gae --obstacle_scene=5 --online_trajectory_duration=2.0 --online_trajectory_time_step=0.1 --pos_limit_factor=1.0 --punish_action --robot_scene=0 --solver_iterations=50 --starting_point_cartesian_range_scene=1 --terminate_on_collision_with_moving_obstacle --terminate_on_collision_with_static_obstacle --terminate_on_self_collision --use_controller_target_velocities --use_moving_objects --vel_limit_factor=1.0 --time=500 
 ```
 
+
+**Human environment**
+
+```bash
+python safemotions/train.py --logdir=specify_path_for_training_logs --name=Backup_Human --acc_limit_factor=1.0 --action_max_punishment=0.4 --action_punishment_min_threshold=0.95  --batch_size_factor=8.0 --closest_point_safety_distance=0.01 --collision_avoidance_episode_early_termination_punishment=-15 --collision_avoidance_episode_termination_bonus=15  --collision_avoidance_kinematic_state_sampling_mode --collision_avoidance_kinematic_state_sampling_probability=0.7 --collision_avoidance_low_acceleration_max_reward=0.0 --collision_avoidance_low_acceleration_threshold=1.0 --collision_avoidance_low_velocity_max_reward=0.0 --collision_avoidance_low_velocity_threshold=1.0 --collision_avoidance_mode --collision_avoidance_moving_obstacles_max_reward_distance=0.6 --collision_avoidance_moving_obstacles_max_reward=3.0 --collision_avoidance_self_collision_max_reward_distance=0.05 --collision_avoidance_self_collision_max_reward=1.0 --collision_avoidance_static_obstacles_max_reward_distance=0.1 --collision_avoidance_static_obstacles_max_reward=1.0 --collision_avoidance_stay_in_state_probability=0.3 --collision_check_time=0.033 --episodes_per_simulation_reset=4000 --gamma=1.0 --hidden_layer_activation=swish --human_network_checkpoint=human_network/checkpoint/checkpoint --human_network_collision_avoidance_kinematic_state_sampling_probability=0.3 --human_network_collision_avoidance_stay_in_state_probability=0.3 --human_network_use_collision_avoidance_starting_point_sampling --iterations_per_checkpoint=50 --jerk_limit_factor=1.0 --last_layer_activation=tanh --log_std_range="[-1.375, 0.0]" --no_use_gae --obstacle_scene=5 --online_trajectory_duration=3.0 --online_trajectory_time_step=0.1 --pos_limit_factor=1.0 --punish_action --robot_scene=0 --solver_iterations=50 --starting_point_cartesian_range_scene=1 --terminate_on_collision_with_moving_obstacle --terminate_on_collision_with_static_obstacle --terminate_on_self_collision --use_controller_target_velocities --vel_limit_factor=1.0 --time=500 
+```
+
 #### Visualization of the backup policy
 
 After training, you can visualize rollouts of the backup policy by running:
@@ -92,12 +105,17 @@ python safemotions/evaluate.py --checkpoint=backup_networks/space --no_explorati
 python safemotions/evaluate.py --checkpoint=backup_networks/ball --no_exploration --use_gui
 ```
 
+**Example for the human environment**
+```bash
+python safemotions/evaluate.py --checkpoint=backup_networks/human --no_exploration --use_gui
+```
+
 ### 2. Training of the risk estimator
 
 The first step towards training the risk estimator is to generate training data.
 Subsequently, a risk network can be trained via supervised learning. 
 
-#### Generation of a dataset for training
+#### Generation of a dataset to train the risk estimator
 
 **Example for the space environment**
 ```bash
@@ -109,11 +127,32 @@ python safemotions/evaluate.py --checkpoint=backup_networks/space --evaluation_d
 python safemotions/evaluate.py --checkpoint=backup_networks/ball --evaluation_dir=specify_path_for_risk_training_data --collision_avoidance_kinematic_state_sampling_probability=0.5 --collision_avoidance_stay_in_state_probability=1.0 --online_trajectory_duration=1000 --random_agent --risk_state_config=RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP_AND_BACKUP_TRAJECTORY --risk_store_ground_truth --risk_ground_truth_episodes_per_file=5 --risk_ignore_estimation_probability=0.35 --risk_state_deterministic_backup_trajectory --episodes=10000
 ```
 
+**Example for the human environment**
+```bash
+python safemotions/evaluate.py --checkpoint=backup_networks/human --evaluation_dir=specify_path_for_risk_training_data --collision_avoidance_kinematic_state_sampling_probability=0.5 --collision_avoidance_stay_in_state_probability=1.0 --online_trajectory_duration=1000 --random_agent --risk_state_config=RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP_AND_BACKUP_TRAJECTORY --risk_store_ground_truth --risk_ground_truth_episodes_per_file=5 --risk_ignore_estimation_probability=0.35 --risk_state_deterministic_backup_trajectory --episodes=10000
+```
+
 The dataset generation can be accelerated by specifying the number of parallel workers with --num_workers=N. 
-The data is stored in a subfolder of the directory specified by --evaluation_dir.
+The risk data is stored in a subfolder of the directory specified with --evaluation_dir:
+```
+└── evaluation_dir
+    └── safe_motions_risk_evaluation
+        └── SafeMotionsEnvCollisionAvoidance
+            └── name_Of_backup_policy
+                └── timestamp
+                    ├── state_action_risk
+                    │   └── risk data for state-action-based risk estimation
+                    ├── state_risk
+                    │   └── risk data for state-based risk estimation
+                    └── risk_config.json
+```
+The next step is to split the risk data into a training dataset and a test dataset. 
+Use the following command to split the data for the state-action-based risk estimation so that 90% of the data is assigned to the training data set:
+
+tba
 
 
-#### Training via supervised learning
+#### Training of the risk estimator
 
 tba
 
