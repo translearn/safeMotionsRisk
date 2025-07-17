@@ -149,7 +149,11 @@ The risk data is stored in a subfolder of the directory specified with --evaluat
 The next step is to split the risk data into a training dataset and a test dataset. 
 Use the following command to split the data for the state-action-based risk estimation so that 10% of the data is assigned to the test data set:
 
-tba
+```bash
+python safemotions/split_risk_data.py --risk_data_dir=evaluation_dir/safe_motions_risk_evaluation/SafeMotionsEnvCollisionAvoidance/name_Of_backup_policy/timestamp/state_action_risk --test_data_fraction=0.1
+```
+
+
 
 
 #### Training of the risk estimator
