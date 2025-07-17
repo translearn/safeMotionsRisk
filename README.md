@@ -147,7 +147,7 @@ The risk data is stored in a subfolder of the directory specified with --evaluat
                     └── risk_config.json
 ```
 The next step is to split the risk data into a training dataset and a test dataset. 
-Use the following command to split the data for the state-action-based risk estimation so that 90% of the data is assigned to the training data set:
+Use the following command to split the data for the state-action-based risk estimation so that 10% of the data is assigned to the test data set:
 
 tba
 
