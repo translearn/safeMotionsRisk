@@ -33,7 +33,7 @@ class RiskDataReader:
         if len(csv_files) == 0:
             raise FileNotFoundError("Could not find risk data (*.csv) in the specified directory.")
 
-        self._training_data_dir = os.path.join(args.risk_data_dir, "training")
+        self._training_data_dir = os.path.join(args.risk_data_dir, "train")
         self._test_data_dir = os.path.join(args.risk_data_dir, "test")
 
         for dir in [self._training_data_dir, self._test_data_dir]:

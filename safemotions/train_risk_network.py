@@ -83,10 +83,15 @@ class RiskDataGenerator(tf.keras.utils.Sequence):
 
             if len(self._x_risky) < self._batch_size_risky:
                 raise ValueError("Not enough risky datapoints for the selected batch_size and rebalancing_fraction "
-                                 "(required {}, available {}.".format(self._batch_size_risky, len(self._x_risky)))
+                                 "(required {}, available {}.)".format(self._batch_size_risky, len(self._x_risky)))
 
             self._x_not_risky = self._x[np.logical_not(risky_indices)]
             self._y_not_risky = self._y[np.logical_not(risky_indices)]
+
+            if len(self._x_not_risky) < self._batch_size_not_risky:
+                raise ValueError("Not enough unrisky datapoints for the selected batch_size and rebalancing_fraction "
+                                 "(required {}, available {}).".format(self._batch_size_not_risky,
+                                                                      len(self._x_not_risky)))
 
             self._random_indices_risky = np.array([1] * self._batch_size_risky
                                                   + [0] * (len(self._x_risky) - self._batch_size_risky), dtype=bool)
@@ -146,7 +151,7 @@ class RiskDataGenerator(tf.keras.utils.Sequence):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--data_dir', type=str, required=True, default=None)
+    parser.add_argument('--risk_data_dir', type=str, required=True, default=None)
     parser.add_argument('--experiment_name', type=str, required=True, default=None)
     parser.add_argument('--hidden_layer_activation', default='relu', choices=['relu', 'selu', 'tanh', 'sigmoid', 'elu',
                                                                               'gelu', 'swish', 'leaky_relu'])
@@ -165,7 +170,7 @@ if __name__ == '__main__':
     parser.add_argument('--kernel_constraint', type=float, default=None)
     parser.add_argument('--kernel_regularizer', type=float, default=None)
     parser.add_argument('--bias_regularizer', type=float, default=None)
-    parser.add_argument('--log_dir', type=str, default=None)
+    parser.add_argument('--logdir', type=str, default=None)
     parser.add_argument('--seed', type=int, default=None)
 
     args = parser.parse_args()
@@ -175,16 +180,16 @@ if __name__ == '__main__':
         tf.random.set_seed(args.seed)
         np.random.seed(args.seed)
 
-    training_data_generator = RiskDataGenerator(data_dir=os.path.join(args.data_dir, "train"),
+    training_data_generator = RiskDataGenerator(data_dir=os.path.join(args.risk_data_dir, "train"),
                                                 batch_size=args.batch_size,
                                                 risky_state_rebalancing_fraction=args.risky_state_rebalancing_fraction,
                                                 shuffle=args.shuffle)
 
-    test_data_generator = RiskDataGenerator(data_dir=os.path.join(args.data_dir, "test"),
+    test_data_generator = RiskDataGenerator(data_dir=os.path.join(args.risk_data_dir, "test"),
                                             batch_size=args.batch_size,
                                             shuffle=args.shuffle)
 
-    log_dir = os.path.join(Path.home(), "risk_results") if args.log_dir is None else args.log_dir
+    log_dir = os.path.join(Path.home(), "risk_results") if args.logdir is None else args.logdir
     # add state_risk / state_action_risk folder
     if training_data_generator.state_action_risk:
         log_dir = os.path.join(log_dir, "state_action_risk")
@@ -202,7 +207,7 @@ if __name__ == '__main__':
 
     # copy config file from data dir to log_dir if available
 
-    config_file_path = os.path.join(args.data_dir, "risk_config.json")
+    config_file_path = os.path.join(os.path.dirname(args.risk_data_dir), "risk_config.json")
     if os.path.isfile(config_file_path):
         destination_path = os.path.join(log_dir, "risk_config.json")
         shutil.copy(config_file_path, destination_path)
@@ -210,9 +215,15 @@ if __name__ == '__main__':
         with open(destination_path, 'r') as f:
             config = json.load(f)
 
-        # add obs_size and action_size to config
+        if "observation_size" in config:
+            if training_data_generator.state_size != config["observation_size"]:
+                raise ValueError("The observation size of the risk data ({}) does not match with the "
+                                 "observations size specified in risk_config.json ({}).".format(
+                                    training_data_generator.state_size, config["observation_size"]))
+        else:
+            config["observation_size"] = training_data_generator.state_size
 
-        config["observation_size"] = training_data_generator.state_size
+        # action_size to config
         config["action_size"] = training_data_generator.action_size
 
         # store updated config
@@ -260,7 +271,6 @@ if __name__ == '__main__':
         class_weight = None
 
     model = tf.keras.Sequential()
-    # optional: define input_shape for first layer e.g., input_shape=(16,)
     for i in range(len(args.fcnet_hiddens)):
         model.add(tf.keras.layers.Dense(args.fcnet_hiddens[i], activation=args.hidden_layer_activation,
                                         kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer,
