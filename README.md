@@ -231,6 +231,8 @@ Further details can be found in the following [publication](https://arxiv.org/ab
   pages={11353-11360},
   doi={10.1109/LRA.2024.3488402}
 ```
+## Video
+<a href="https://youtu.be/fR9SByhCbDI"><img width="1832" height="1029" alt="video_thumbnail" src="https://github.com/user-attachments/assets/787da584-4742-494a-8776-400b937ff463" /></a>
 
 
 ## Disclaimer
