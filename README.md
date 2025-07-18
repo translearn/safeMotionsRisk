@@ -204,11 +204,13 @@ The model weights of the risk estimator will be stored in a subdirectory of --lo
 
 Once the backup policy and the corresponding risk estimator are trained, they can be used to avoid collisions while training a task policy. 
 The commands below show how a task policy for a reaching task can be trained.
-
+Use the parameter --risk_config_dir to specify the directory containing the file *saved_model.pb* resulting from the training of the risk estimator.
 
 **Space environment**
 
-tba
+```bash
+python safemotions/train.py --logdir=specify_path_for_training_logs --name=reaching_task_space --acc_limit_factor_braking=1.0 --acc_limit_factor=1.0 --action_max_punishment=0.4  --action_punishment_min_threshold=0.95 --closest_point_safety_distance=0.01  --collision_check_time=0.033 --hidden_layer_activation=swish --iterations_per_checkpoint=50 --jerk_limit_factor_braking=1.0 --jerk_limit_factor=1.0 --last_layer_activation=tanh --log_std_range="[-1.375, 0.0]" --normalize_reward_to_initial_target_point_distance --obs_add_target_point_pos --obs_add_target_point_relative_pos   --obs_planet_size_per_planet=2 --obstacle_scene=5 --online_trajectory_duration=8.0 --online_trajectory_time_step=0.1 --pos_limit_factor=1.0 --punish_action --risk_check_initial_backup_trajectory --risk_config_dir=risk_networks/state_action/space --risk_state_initial_backup_trajectory_steps=20  --risk_threshold=0.065 --robot_scene=0 --solver_iterations=50 --starting_point_cartesian_range=1 --target_point_cartesian_range_scene=0 --target_point_radius=0.065 --target_point_reached_reward_bonus=5 --target_point_relative_pos_scene=0 --target_point_sequence=0 --terminate_on_collision_with_moving_obstacle --terminate_on_collision_with_static_obstacle --terminate_on_self_collision --torque_limit_factor=1.0 --use_controller_target_velocities --use_target_points --vel_limit_factor=1.0 --time=500 
+```
 
 **Ball environment**
 
@@ -231,8 +233,9 @@ Further details can be found in the following [publication](https://arxiv.org/ab
   pages={11353-11360},
   doi={10.1109/LRA.2024.3488402}
 ```
+
 ## Video
-<a href="https://youtu.be/fR9SByhCbDI"><img width="1832" height="1029" alt="video_thumbnail" src="https://github.com/user-attachments/assets/787da584-4742-494a-8776-400b937ff463" /></a>
+<a href="https://youtu.be/fR9SByhCbDI"><img width="1832" alt="video_thumbnail" src="https://github.com/user-attachments/assets/787da584-4742-494a-8776-400b937ff463" /></a>
 
 
 ## Disclaimer
