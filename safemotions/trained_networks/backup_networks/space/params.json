@@ -57,8 +57,6 @@
     "obs_planet_size_per_planet": 2,
     "obstacle_scene": 5,
     "obstacle_use_computed_actual_values": false,
-    "online_trajectory_duration": 2.0,
-    "online_trajectory_time_step": 0.1,
     "planet_mode": true,
     "planet_one_center": [
       -0.1,
@@ -118,6 +116,8 @@
     "terminate_on_collision_with_static_obstacle": true,
     "terminate_on_self_collision": true,
     "torque_limit_factor": 1.0,
+    "trajectory_duration": 2.0,
+    "trajectory_time_step": 0.1,
     "use_controller_target_velocities": true,
     "use_target_points": false,
     "vel_limit_factor": 1.0

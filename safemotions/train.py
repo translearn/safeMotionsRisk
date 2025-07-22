@@ -177,8 +177,8 @@ def _make_env_config():
         'action_mapping_factor': args.action_mapping_factor,
         'action_preprocessing_function': args.action_preprocessing_function,
         'normalize_reward_to_frequency': args.normalize_reward_to_frequency,
-        'online_trajectory_duration': args.online_trajectory_duration,
-        'online_trajectory_time_step': args.online_trajectory_time_step,
+        'trajectory_duration': args.trajectory_duration,
+        'trajectory_time_step': args.trajectory_time_step,
         'obs_add_target_point_pos': args.obs_add_target_point_pos,
         'obs_add_target_point_relative_pos': args.obs_add_target_point_relative_pos,
         'punish_action': args.punish_action,
@@ -366,8 +366,8 @@ if __name__ == '__main__':
     parser.add_argument('--normalize_reward_to_frequency', dest='normalize_reward_to_frequency', action='store_true',
                         default=False)
     parser.add_argument('--batch_size_factor', type=float, default=1.0)
-    parser.add_argument('--online_trajectory_duration', type=float, default=8.0)
-    parser.add_argument('--online_trajectory_time_step', type=float, default=0.1)
+    parser.add_argument('--trajectory_duration', type=float, default=8.0)
+    parser.add_argument('--trajectory_time_step', type=float, default=0.1)
     parser.add_argument('--obs_add_target_point_pos', action='store_true', default=False)
     parser.add_argument('--obs_add_target_point_relative_pos', action='store_true', default=False)
     parser.add_argument('--punish_action', action='store_true', default=False)

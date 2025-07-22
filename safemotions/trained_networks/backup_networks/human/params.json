@@ -61,8 +61,6 @@
     "obs_add_target_point_relative_pos": false,
     "obstacle_scene": 5,
     "obstacle_use_computed_actual_values": false,
-    "online_trajectory_duration": 3.0,
-    "online_trajectory_time_step": 0.1,
     "pos_limit_factor": 1.0,
     "punish_action": true,
     "punish_adaptation": false,
@@ -90,6 +88,8 @@
     "terminate_on_collision_with_static_obstacle": true,
     "terminate_on_self_collision": true,
     "torque_limit_factor": 1.0,
+    "trajectory_duration": 3.0,
+    "trajectory_time_step": 0.1,
     "use_controller_target_velocities": true,
     "use_target_points": false,
     "vel_limit_factor": 1.0

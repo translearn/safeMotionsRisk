@@ -320,7 +320,7 @@ if __name__ == '__main__':
     parser.add_argument('--use_gui', action='store_true', default=False)
     parser.add_argument('--switch_gui_to_obstacle_client', action='store_true', default=False)
     parser.add_argument('--switch_gui_to_backup_client', action='store_true', default=False)
-    parser.add_argument('--online_trajectory_duration', type=float, default=None)
+    parser.add_argument('--trajectory_duration', type=float, default=None)
     parser.add_argument('--check_braking_trajectory_collisions', action='store_true', default=False)
     parser.add_argument('--check_braking_trajectory_torque_limits', action='store_true', default=False)
     parser.add_argument('--collision_check_time', type=float, default=None)
@@ -494,8 +494,8 @@ if __name__ == '__main__':
     if args.obstacle_scene is not None:
         env_config['obstacle_scene'] = args.obstacle_scene
 
-    if args.online_trajectory_duration is not None:
-        env_config['online_trajectory_duration'] = args.online_trajectory_duration
+    if args.trajectory_duration is not None:
+        env_config['trajectory_duration'] = args.trajectory_duration
 
     if args.plot_trajectory:
 

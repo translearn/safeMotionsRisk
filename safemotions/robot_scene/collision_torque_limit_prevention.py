@@ -808,7 +808,7 @@ class ObstacleWrapperSim(ObstacleWrapperBase):
                       self._robot_scene.human_network_collision_avoidance_kinematic_state_sampling_probability,
                       collision_avoidance_stay_in_state_probability=
                       self._robot_scene.human_network_collision_avoidance_stay_in_state_probability,
-                      online_trajectory_duration=self._robot_scene.online_trajectory_duration,
+                      trajectory_duration=self._robot_scene.trajectory_duration,
                       simulation_client_id=self._simulation_client_id,
                       obstacle_client_id=self._obstacle_client_id,
                       backup_client_id=self._backup_client_id,
@@ -4652,7 +4652,7 @@ class Human(ObstacleSim):
                  risk_state_deterministic_backup_trajectory=False,
                  collision_avoidance_kinematic_state_sampling_probability=1.0,
                  collision_avoidance_stay_in_state_probability=0.3,
-                 online_trajectory_duration=None,
+                 trajectory_duration=None,
                  simulation_client_id=None,
                  obstacle_client_id=None,
                  backup_client_id=None,
@@ -4670,7 +4670,7 @@ class Human(ObstacleSim):
         self._collision_avoidance_kinematic_state_sampling_probability = \
             collision_avoidance_kinematic_state_sampling_probability
         self._collision_avoidance_stay_in_state_probability = collision_avoidance_stay_in_state_probability
-        self._online_trajectory_duration = online_trajectory_duration
+        self._trajectory_duration = trajectory_duration
         self._use_gui = use_gui
         self._no_link_coloring = no_link_coloring
         self._plot_trajectory = plot_trajectory
@@ -4740,10 +4740,10 @@ class Human(ObstacleSim):
         if "seed" in env_config:
             env_config["seed"] = None
 
-        if self._online_trajectory_duration is not None:
+        if self._trajectory_duration is not None:
             # prevent termination of the human environment
-            env_config["online_trajectory_duration"] = self._online_trajectory_duration + \
-                                                       env_config["online_trajectory_time_step"]
+            env_config["trajectory_duration"] = self._trajectory_duration + \
+                                                       env_config["trajectory_time_step"]
 
         ModelCatalog.register_custom_model('keras_fcnet_last_layer_activation',
                                            FullyConnectedNetworkLastLayerActivation)

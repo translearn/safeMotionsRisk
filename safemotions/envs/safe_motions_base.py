@@ -106,8 +106,8 @@ class SafeMotionsBase(gym.Env):
                  save_obstacle_data=False,
                  store_actions=False,
                  store_trajectory=False,
-                 online_trajectory_duration=8.0,
-                 online_trajectory_time_step=0.1,
+                 trajectory_duration=8.0,
+                 trajectory_time_step=0.1,
                  position_controller_time_constants=None,
                  plot_computed_actual_values=False,
                  plot_actual_torques=False,
@@ -316,7 +316,7 @@ class SafeMotionsBase(gym.Env):
         self._no_target_link_coloring = no_target_link_coloring
         self._terminate_on_robot_stop = terminate_on_robot_stop
         self._use_controller_target_velocities = use_controller_target_velocities
-        self._trajectory_time_step = online_trajectory_time_step
+        self._trajectory_time_step = trajectory_time_step
         self._position_controller_time_constants = position_controller_time_constants
         self._plot_computed_actual_values = plot_computed_actual_values
         self._plot_actual_torques = plot_actual_torques
@@ -327,7 +327,7 @@ class SafeMotionsBase(gym.Env):
         self._jerk_limit_factor = jerk_limit_factor
         self._torque_limit_factor = torque_limit_factor
         self._acceleration_after_max_vel_limit_factor = acceleration_after_max_vel_limit_factor
-        self._online_trajectory_duration = online_trajectory_duration
+        self._trajectory_duration = trajectory_duration
         self._eval_new_condition_counter = eval_new_condition_counter
         self._store_actions = store_actions
         self._store_trajectory = store_trajectory
@@ -539,8 +539,11 @@ class SafeMotionsBase(gym.Env):
                                 "ball_machine_mode",
                                 "human_network_checkpoint", "human_network_use_full_observation"]
 
-        error_parameters = ["robot_scene", "trajectory_time_step"]
-        warning_parameters = ["obstacle_scene", "closest_point_safety_distance", "starting_point_cartesian_range_scene"]
+        error_parameters = ["robot_scene", "trajectory_time_step",
+                            "acc_limit_factor", "jerk_limit_factor", "pos_limit_factor", "vel_limit_factor"]
+
+        warning_parameters = ["obstacle_scene", "closest_point_safety_distance", "starting_point_cartesian_range_scene",
+                              "use_controller_target_velocities"]
 
         for parameter in overwrite_parameters:
             if parameter in self._risk_config["config"]["env_config"]:
@@ -570,7 +573,7 @@ class SafeMotionsBase(gym.Env):
         if self._risk_state_backup_trajectory_steps is None:
             # trajectory steps as during the training of the backup agent
             self._risk_state_backup_trajectory_steps = round(
-                self._risk_config["config"]["env_config"]["online_trajectory_duration"] / self._trajectory_time_step)
+                self._risk_config["config"]["env_config"]["trajectory_duration"] / self._trajectory_time_step)
 
         if self._risk_state_initial_backup_trajectory_steps is None:
             self._risk_state_initial_backup_trajectory_steps = self._risk_state_backup_trajectory_steps
@@ -761,7 +764,7 @@ class SafeMotionsBase(gym.Env):
                                   'backup_client_id': self._backup_client_id,
                                   'gui_client_id': self._gui_client_id,
                                   'trajectory_time_step': self._trajectory_time_step,
-                                  'online_trajectory_duration': self._online_trajectory_duration,
+                                  'trajectory_duration': self._trajectory_duration,
                                   'use_real_robot': self._use_real_robot,
                                   'robot_scene': self._robot_scene_index,
                                   'obstacle_scene': self._obstacle_scene,
@@ -873,7 +876,7 @@ class SafeMotionsBase(gym.Env):
 
         # trajectory manager settings
         self._trajectory_manager = TrajectoryManager(trajectory_time_step=self._trajectory_time_step,
-                                                     trajectory_duration=self._online_trajectory_duration,
+                                                     trajectory_duration=self._trajectory_duration,
                                                      obstacle_wrapper=self._robot_scene.obstacle_wrapper,
                                                      env=self)
 

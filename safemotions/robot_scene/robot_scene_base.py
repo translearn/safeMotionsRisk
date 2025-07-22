@@ -33,7 +33,7 @@ class RobotSceneBase(object):
                  backup_client_id=None,
                  gui_client_id=None,
                  trajectory_time_step=None,
-                 online_trajectory_duration=None,
+                 trajectory_duration=None,
                  use_real_robot=False,
                  robot_scene=0,
                  obstacle_scene=0,
@@ -124,7 +124,7 @@ class RobotSceneBase(object):
         self._gui_client_id = gui_client_id
         self._use_real_robot = use_real_robot
         self._trajectory_time_step = trajectory_time_step
-        self._online_trajectory_duration = online_trajectory_duration
+        self._trajectory_duration = trajectory_duration
         self.capture_frame_function = capture_frame_function
         self._visual_mode = visual_mode
         self._collision_avoidance_mode = collision_avoidance_mode
@@ -493,8 +493,8 @@ class RobotSceneBase(object):
         pass
 
     @property
-    def online_trajectory_duration(self):
-        return self._online_trajectory_duration
+    def trajectory_duration(self):
+        return self._trajectory_duration
 
     @property
     def manip_joint_indices(self):
