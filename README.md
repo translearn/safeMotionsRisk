@@ -192,7 +192,7 @@ python safemotions/train_risk_network.py --logdir=specify_path_for_risk_training
 **Example for the human environment**
 
 ```bash
-python safemotions/train_risk_network.py --logdir=specify_path_for_risk_training_logs --batch_size=300000 --risk_data_dir=evaluation_dir/safe_motions_risk_evaluation/SafeMotionsEnvCollisionAvoidance/backup_human/timestamp/state_action_risk --dropout=0.05 --epochs=2000 --experiment_name=Ball --fcnet_hiddens="[512, 256, 128]" --hidden_layer_activation=selu --last_layer_activation=sigmoid --lr=0.005  --risky_state_class_weight=9.0 --risky_state_rebalancing_fraction=0.2 --shuffle
+python safemotions/train_risk_network.py --logdir=specify_path_for_risk_training_logs --batch_size=300000 --risk_data_dir=evaluation_dir/safe_motions_risk_evaluation/SafeMotionsEnvCollisionAvoidance/backup_human/timestamp/state_action_risk --dropout=0.05 --epochs=2000 --experiment_name=human --fcnet_hiddens="[512, 256, 128]" --hidden_layer_activation=selu --last_layer_activation=sigmoid --lr=0.005  --risky_state_class_weight=9.0 --risky_state_rebalancing_fraction=0.2 --shuffle
 ```
 
 The model weights of the risk estimator will be stored in a subdirectory of --logdir:
