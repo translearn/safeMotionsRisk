@@ -3,7 +3,7 @@
 [![arXiv](https://img.shields.io/badge/arXiv-2411.05784-B31B1B)](https://arxiv.org/abs/2411.05784)
 [![GitHub issues](https://img.shields.io/github/issues/translearn/safemotionsRisk)](https://github.com/translearn/safeMotionsRisk/issues/)<br>
 
-This branch contains a Python 3.12 + PyTorch + Ray 2.49.1 port of the original code from the main branch which uses Python 3.8 + Tensorflow + Ray 1.4.1.
+This branch contains a **Python 3.12 │ PyTorch 2.7.1 │ Ray 2.49.1 port** of the original code from the main branch which uses Python 3.8 │ Tensorflow 2.5.0 │ Ray 1.4.1.
 
 <div align='center'>
     <img src="https://github.com/user-attachments/assets/c20f450c-15f8-4639-ab85-7663688cb9e7" width="750"/>
