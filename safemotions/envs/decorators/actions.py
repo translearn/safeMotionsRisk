@@ -8,7 +8,7 @@ from abc import ABC
 
 import numpy as np
 import pybullet as p
-from gym.spaces import Box
+from gymnasium.spaces import Box
 from klimits import PosVelJerkLimitation
 from klimits import denormalize as denormalize
 from klimits import get_num_threads
@@ -256,10 +256,7 @@ class AccelerationPredictionBoundedJerkAccVelPos(ABC, SafeMotionsBase):
         else:
             preprocessed_action = action
 
-        temp_action = action
-
-
-        initial_motor_action = temp_action
+        initial_motor_action = preprocessed_action
 
         motor_action = np.copy(initial_motor_action)
 
@@ -281,7 +278,7 @@ class AccelerationPredictionBoundedJerkAccVelPos(ABC, SafeMotionsBase):
 
     def _compute_controller_setpoints_from_action(self, action):
         info = {'min': {},
-                'average': {},
+                'mean': {},
                 'max': {}}
 
         robot_stopped = False
@@ -336,7 +333,7 @@ class AccelerationPredictionBoundedJerkAccVelPos(ABC, SafeMotionsBase):
                         self._risk_network_first_risky_action_step = self._episode_length - 1
                     risky_action_rate = 1.0
 
-                for key in ["average", "min", "max"]:
+                for key in ["mean", "min", "max"]:
                     info[key]["risky_action_rate"] = risky_action_rate
 
             self._end_acceleration, execute_braking_trajectory, self._adaptation_punishment, \

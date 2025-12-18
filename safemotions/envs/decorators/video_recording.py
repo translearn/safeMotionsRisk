@@ -11,7 +11,7 @@ import numpy as np
 from glob import glob
 from abc import ABC
 from PIL import Image, ImageDraw, ImageFont, ImageGrab
-from gym.wrappers.monitoring.video_recorder import VideoRecorder
+from safemotions.utils.video_recorder import VideoRecorder
 from safemotions.envs.safe_motions_base import SafeMotionsBase
 
 RENDER_MODES = ["human", "rgb_array"]
@@ -289,7 +289,8 @@ class VideoRecordingManager(ABC, SafeMotionsBase):
             'video.width': self._video_width,
             'video.camera_angle': self._camera_angle,
             'episode_id': episode_id,
-            'seed': self._fixed_seed
+            'seed': self._seed,
+            'initial_seed': self._initial_seed,
         }
 
         self._video_recorder = VideoRecorder(self, base_path=self._video_base_path, metadata=metadata, enabled=True)

@@ -1,5 +1,1 @@
-{
-    "action_size": 7,
-    "checkpoint": "backup_networks/ball/checkpoint/checkpoint",
-    "observation_size": 27
-}
+{"action_size": 7, "checkpoint": "backup_networks/ball/checkpoint", "observation_size": 27, "risk_network_config": {"activation": "selu", "dropout": 0.075, "fcnet_hiddens": [512, 256, 128], "input_size": 34, "last_activation": "sigmoid"}}

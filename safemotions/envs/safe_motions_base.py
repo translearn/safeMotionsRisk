@@ -21,8 +21,8 @@ from itertools import chain
 from pathlib import Path
 from threading import Thread
 
-import gym
-from gym.spaces import Box
+import gymnasium as gym
+from gymnasium.spaces import Box
 import numpy as np
 import pybullet as p
 
@@ -30,6 +30,8 @@ from safemotions.robot_scene.real_robot_scene import RealRobotScene
 from safemotions.robot_scene.simulated_robot_scene import SimRobotScene
 from safemotions.utils.control_rate import ControlRate
 from safemotions.utils.trajectory_manager import TrajectoryManager
+
+torch = None  # import later if needed
 
 SIM_TIME_STEP = 1. / 240.
 CONTROLLER_TIME_STEP = 1. / 200.
@@ -180,6 +182,7 @@ class SafeMotionsBase(gym.Env):
                  risk_store_ground_truth=False,
                  risk_ground_truth_episodes_per_file=None,
                  risk_ignore_estimation_probability=0.0,
+                 risk_network_use_gpu=False,
                  visualize_risk=False,
                  human_network_checkpoint=None,
                  human_network_use_full_observation=False,
@@ -206,16 +209,17 @@ class SafeMotionsBase(gym.Env):
                  physic_clients_dict=None,
                  **kwargs):
 
-        self._fixed_seed = None
-
         self._risk_config_dir = risk_config_dir
-
-        self.set_seed(seed)
         if evaluation_dir is None:
             evaluation_dir = os.path.join(Path.home(), "safe_motions_risk_evaluation")
         self._time_stamp = time_stamp
         if logging_level is not None:
             logging.getLogger().setLevel(logging_level)
+
+        self._initial_seed = seed
+        self._seed = None
+        self.set_seed(seed)
+
         if self._time_stamp is None:
             self._time_stamp = datetime.datetime.now().strftime('%Y%m%dT%H%M%S')
 
@@ -364,6 +368,7 @@ class SafeMotionsBase(gym.Env):
             self._risk_ground_truth_episodes_per_file = risk_ground_truth_episodes_per_file
 
         self._risk_ignore_estimation_probability = risk_ignore_estimation_probability
+        self._risk_network_use_gpu = risk_network_use_gpu
 
         self._visualize_risk = visualize_risk
 
@@ -484,7 +489,7 @@ class SafeMotionsBase(gym.Env):
             p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 0, physicsClientId=self._gui_client_id)
 
         self._risk_network = None
-        self._risk_network_graph = None
+        self._risk_network_device = None
         self._risk_network_use_state_and_action = None
         self._risk_network_first_risky_action_step = None
         self._risk_ground_truth_dict = None
@@ -492,10 +497,10 @@ class SafeMotionsBase(gym.Env):
             if self._risk_store_ground_truth:
                 self._risk_ground_truth_dict = defaultdict(list)
 
-        self._do_not_copy_keys = ["_risk_config", "_backup_agent", "_risk_network", "_risk_network_graph",
+        self._do_not_copy_keys = ["_risk_config", "_backup_agent", "_risk_network", "_risk_network_device",
                                   "_trajectory_plotter", "observation_space", "action_space",
                                   "_acc_limitation", "_braking_trajectory_generator", "_risk_ground_truth_dict",
-                                  "_acc_limitation_joint", "_control_rate", "_video_recorder"]
+                                  "_acc_limitation_joint", "_control_rate", "_video_recorder", '_np_random', 'spec']
         self._recursive_copy_keys = ["_robot_scene", "_trajectory_manager"]
 
     def _load_risk_config(self):
@@ -510,12 +515,12 @@ class SafeMotionsBase(gym.Env):
                 raise FileNotFoundError("Could not find config file {}.".format(risk_config_file_path))
 
         # adjust checkpoint path in risk config if needed
-        backup_checkpoint_path = self._risk_config["checkpoint"] if os.path.isfile(self._risk_config["checkpoint"]) \
+        backup_checkpoint_path = self._risk_config["checkpoint"] if os.path.isdir(self._risk_config["checkpoint"]) \
             else os.path.join(current_dir, "trained_networks", self._risk_config["checkpoint"])
 
         # load env config from params.json
-        backup_checkpoint_config_file_path = os.path.join(os.path.dirname(os.path.dirname(backup_checkpoint_path)),
-                                                   "params.json")
+        backup_checkpoint_config_file_path = os.path.join(os.path.dirname(backup_checkpoint_path),
+                                                          "params.json")
 
         if not os.path.isfile(backup_checkpoint_config_file_path):
             raise FileNotFoundError("Could not find checkpoint params file {}.".format(
@@ -579,19 +584,9 @@ class SafeMotionsBase(gym.Env):
             self._risk_state_initial_backup_trajectory_steps = self._risk_state_backup_trajectory_steps
 
     def _init_risk_network_and_backup_agent(self):
-        import ray
-        from ray import tune
-        from ray.rllib import rollout
-        from ray.rllib.models import ModelCatalog
-        from ray.rllib.agents.callbacks import DefaultCallbacks
+        from safemotions.utils.rl_agent import RLAgent
 
-        import tensorflow as tf  # has to be imported after ray
-        from safemotions.model.keras_fcnet_last_layer_activation import FullyConnectedNetworkLastLayerActivation
-
-        self._risk_config["config"]['callbacks'] = DefaultCallbacks
-
-        ModelCatalog.register_custom_model('keras_fcnet_last_layer_activation',
-                                           FullyConnectedNetworkLastLayerActivation)
+        ## import tensorflow as tf  # has to be imported after ray
 
         if not self._risk_use_backup_agent_for_initial_backup_trajectory_only:
             if self._risk_config["action_size"] is not None:
@@ -606,38 +601,45 @@ class SafeMotionsBase(gym.Env):
             if self._risk_network_use_state_and_action or \
                     self._risk_state_config != self.RISK_CHECK_NEXT_STATE_SIMULATE_NEXT_STEP_AND_BACKUP_TRAJECTORY:
 
-                gpu_devices = tf.config.experimental.list_physical_devices('GPU')
-                if gpu_devices:
-                    # if the memory usage is not limited, tf assigns the whole gpu to the risk network leading to a
-                    # performance decrease in case that use_gui=True as the GPU is blocked by the network.
-                    tf.config.experimental.set_virtual_device_configuration(
-                        gpu_devices[0],
-                        [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=2048)])
+                global torch
+                import torch as torch
+                from safemotions.model.risk_network import RiskNetwork
 
-                self._risk_network = tf.keras.models.load_model(self._risk_config_dir)
-                self._risk_network_graph = tf.compat.v1.get_default_graph()  # required to avoid an error when
-                # using the keras network within the same process as the rl network during evaluation
+                risk_network_device_name = 'cpu'
 
-        tune.register_env(RiskDummyEnv.__name__,
-                          lambda config_args: RiskDummyEnv(**config_args))
+                if self._risk_network_use_gpu:
+                    # make sure the GPU can be seen even if ray sets CUDA_VISIBLE_DEVICES to ''
+                    if os.environ['CUDA_VISIBLE_DEVICES'] == '':
+                        del os.environ['CUDA_VISIBLE_DEVICES']
 
-        ray.init(dashboard_host="0.0.0.0", include_dashboard=False, ignore_reinit_error=True)
-        cls = rollout.get_trainable_cls("PPO")
-        dummy_config = self._risk_config["config"].copy()
-        dummy_config["env"] = RiskDummyEnv.__name__
+                    cuda_available = torch.cuda.is_available()
 
-        if "seed" in dummy_config:
-            dummy_config["seed"] = None
-        dummy_config["num_workers"] = 0
-        dummy_config["explore"] = False  # deactivate exploration
-        dummy_config["env_config"] = {"observation_size": self._risk_config["observation_size"],
-                                      "action_size": self._num_manip_joints}
+                    if cuda_available:
+                        risk_network_device_name = 'cuda'
+                    else:
+                        logging.warning("Risk network configured to use a GPU but no CUDA device available. "
+                                        "Using the CPU instead.")
 
-        self._backup_agent = cls(env=RiskDummyEnv.__name__, config=dummy_config)
+                self._risk_network_device = torch.device(risk_network_device_name)
 
-        backup_checkpoint_path = self._risk_config["checkpoint"] if os.path.isfile(self._risk_config["checkpoint"]) \
-            else os.path.join(current_dir, "trained_networks", self._risk_config["checkpoint"])
-        self._backup_agent.restore(backup_checkpoint_path)
+                self._risk_network = RiskNetwork(**self._risk_config["risk_network_config"])
+
+                self._risk_network.load_state_dict(
+                    torch.load(os.path.join(self._risk_config_dir, "model.pt"),
+                               map_location=self._risk_network_device, weights_only=True))
+
+                self._risk_network = self._risk_network.to(self._risk_network_device)
+                self._risk_network.eval()  # set to eval mode
+
+        backup_checkpoint_path = self._risk_config["checkpoint"] if os.path.isdir(self._risk_config["checkpoint"]) \
+                else os.path.join(current_dir, "trained_networks", self._risk_config["checkpoint"])
+
+        self._backup_agent = RLAgent(checkpoint_path=backup_checkpoint_path,
+                                     observation_size=self._risk_config["observation_size"],
+                                     action_size=self._num_manip_joints,
+                                     explore=False,
+                                     clip_actions=self._risk_config["config"]["clip_actions"],
+                                     policy_name="backup")
 
     def _init_physic_clients(self):
         self._num_physic_clients = 0
@@ -858,7 +860,7 @@ class SafeMotionsBase(gym.Env):
                                   'obstacle_client_update_steps_per_action':
                                       self._obstacle_client_update_steps_per_action,
                                   'do_not_execute_robot_movement': self._do_not_execute_robot_movement,
-                                  'use_fixed_seed': True if self._fixed_seed is not None else False,
+                                  'use_fixed_seed': True if self._seed is not None else False,
                                   }
 
         if self._use_real_robot:
@@ -910,7 +912,10 @@ class SafeMotionsBase(gym.Env):
                                        physicsClientId=self._gui_client_id)
             # set shadowMapResolution to 4096 when running the code without a dedicated GPU and to 16384 otherwise
 
-    def reset(self, repeated_reset=False):
+    def reset(self, seed=None, repeated_reset=False, options=None):
+        if seed is not None and seed != self._seed:
+            self.set_seed(seed)
+
         self._episode_counter += 1
         if self._episode_counter == 1 and self._gui_client_id is not None:
             p.configureDebugVisualizer(p.COV_ENABLE_RENDERING, 1, physicsClientId=self._gui_client_id)
@@ -1167,13 +1172,13 @@ class SafeMotionsBase(gym.Env):
         self._robot_scene.obstacle_wrapper.process_step_outcome()
 
         if movement_info is None:
-            movement_info = {'average': {}, 'min': {}, 'max': {}}
+            movement_info = {'mean': {}, 'min': {}, 'max': {}}
 
         if action_info is None:
-            action_info = {'average': {}, 'min': {}, 'max': {}}
+            action_info = {'mean': {}, 'min': {}, 'max': {}}
 
         if self._max_resampling_attempts != 0:
-            for key in ["average", "min", "max"]:
+            for key in ["mean", "min", "max"]:
                 movement_info[key]["resampling_attempts"] = self._resampling_attempts
 
         self._start_position = obstacle_client_update_setpoints['positions'][-1]
@@ -1189,6 +1194,9 @@ class SafeMotionsBase(gym.Env):
             time.sleep(self._trajectory_time_step * self._time_step_fraction_sleep_observation)
 
         observation, reward, done, info = self._process_action_outcome(movement_info, action_info, robot_stopped)
+
+        termination = False
+        truncation = False
 
         if not self._network_prediction_part_done:
             self._total_reward += reward
@@ -1210,7 +1218,8 @@ class SafeMotionsBase(gym.Env):
 
                 self._robot_scene.prepare_for_end_of_episode()
                 self._prepare_for_end_of_episode()
-                observation, reward, _, info = self._process_end_of_episode(observation, reward, done, info)
+                observation, reward, termination, truncation, info = self._process_end_of_episode(observation, reward,
+                                                                                                  info)
 
                 if self._store_actions:
                     self._store_action_list()
@@ -1218,13 +1227,15 @@ class SafeMotionsBase(gym.Env):
                     self._store_trajectory_data()
             else:
                 self._brake = True  # slow down the robot prior to stopping the episode
-                done = False
 
         self._resampling_attempts = 0
         self._safe_action = None
         self._last_risk_prediction = None
 
-        return observation, reward, done, dict(info)
+        # distinguish between termination and truncation if needed
+        # see https://farama.org/Gymnasium-Terminated-Truncated-Step-API
+
+        return observation, reward, termination, truncation, dict(info)
 
     def _execute_robot_movement(self, controller_setpoints):
         # executed in real-time if required
@@ -1276,7 +1287,7 @@ class SafeMotionsBase(gym.Env):
             if not self._use_real_robot:
                 self._add_actual_position_to_plot(actual_position)
 
-        movement_info = {'average': {}, 'min': {}, 'max': {}}
+        movement_info = {'mean': {}, 'min': {}, 'max': {}}
 
         if not self._use_real_robot:
             # add torque info to movement_info
@@ -1286,7 +1297,7 @@ class SafeMotionsBase(gym.Env):
                 self._end_max_torque = np.max(actual_joint_torques_rel_abs[-1])
             actual_joint_torques_rel_abs_swap = actual_joint_torques_rel_abs.T
             for j in range(self._num_manip_joints):
-                movement_info['average']['joint_{}_torque_abs'.format(j)] = np.mean(
+                movement_info['mean']['joint_{}_torque_abs'.format(j)] = np.mean(
                     actual_joint_torques_rel_abs_swap[j])
                 actual_joint_torques_rel_abs_max = np.max(actual_joint_torques_rel_abs_swap[j])
                 movement_info['max']['joint_{}_torque_abs'.format(j)] = actual_joint_torques_rel_abs_max
@@ -1294,7 +1305,7 @@ class SafeMotionsBase(gym.Env):
                     torque_violation = 1.0
 
             movement_info['max']['joint_torque_violation'] = torque_violation
-            movement_info['average']['joint_torque_violation'] = torque_violation
+            movement_info['mean']['joint_torque_violation'] = torque_violation
 
         return movement_info
 
@@ -1347,7 +1358,7 @@ class SafeMotionsBase(gym.Env):
         self._calculate_safe_acc_range(self._start_position, self._start_velocity, self._start_acceleration,
                                        self._current_trajectory_point_index)
 
-        for key in ['average', 'max']:
+        for key in ['mean', 'max']:
             base_info[key]['collision_rate_self'] = 1.0 if self._self_collision_detected else 0.0
             base_info[key]['collision_rate_static_obstacles'] = \
                 1.0 if self._collision_with_static_obstacle_detected else 0.0
@@ -1364,7 +1375,7 @@ class SafeMotionsBase(gym.Env):
 
         return observation, reward, done, info
 
-    def _process_end_of_episode(self, observation, reward, done, info):
+    def _process_end_of_episode(self, observation, reward, info):
         if self._trajectory_successful:
             info['trajectory_successful'] = 1.0
         else:
@@ -1393,7 +1404,14 @@ class SafeMotionsBase(gym.Env):
                 self._simulation_client_id != self._backup_client_id:
             self._store_risk_ground_truth_data()
 
-        return observation, reward, done, info
+        termination = True
+        truncation = False
+
+        # note the difference between termination and truncation
+        # https://farama.org/Gymnasium-Terminated-Truncated-Step-API
+        # overload this method to distinguish between the two cases
+
+        return observation, reward, termination, truncation, info
 
     def _make_evaluation_dir(self, sub_dir=None):
         if sub_dir is not None:
@@ -1497,6 +1515,7 @@ class SafeMotionsBase(gym.Env):
 
     def _is_action_risky(self, action, motor_action, end_acceleration=None):
         action_considered_as_risky = False
+        risky_action_termination_reason = None
         risk_input = None
         if self._risk_network_use_state_and_action:
             risk_input = np.array(list(self._risk_observation) + list(motor_action))
@@ -1540,7 +1559,9 @@ class SafeMotionsBase(gym.Env):
                             dtype=np.float64)
                         simulated_action = self._get_action_from_backup_action(backup_action)
 
-                    _, _, simulation_done, _ = self.step(simulated_action)
+                    _, _, termination, truncation, _ = self.step(simulated_action)
+
+                    simulation_done = termination or truncation
 
                     if not simulation_done and state_ground_truth_state is None:
                         state_ground_truth_state = self._risk_observation.copy()
@@ -1548,6 +1569,7 @@ class SafeMotionsBase(gym.Env):
                     if simulation_done:
                         if self.termination_reason != self.TERMINATION_TRAJECTORY_LENGTH:
                             action_considered_as_risky = True
+                            risky_action_termination_reason = self.termination_reason
                         break
 
                     if not action_considered_as_risky and \
@@ -1577,28 +1599,42 @@ class SafeMotionsBase(gym.Env):
                     else:
                         ground_truth_risk = 0.0
 
+                    self_collision = 1.0 if risky_action_termination_reason == self.TERMINATION_SELF_COLLISION else 0.0
+                    static_obstacle = 1.0 if (risky_action_termination_reason ==
+                                              self.TERMINATION_COLLISION_WITH_STATIC_OBSTACLE) else 0.0
+                    moving_obstacle = 1.0 if (risky_action_termination_reason ==
+                                              self.TERMINATION_COLLISION_WITH_MOVING_OBSTACLE) else 0.0
+
                     if "state_action_risk" not in self._risk_ground_truth_dict:
                         self._risk_ground_truth_dict["state_action_risk"] = defaultdict(list)
                         self._risk_ground_truth_dict["state_risk"] = defaultdict(list)
 
-                    self._risk_ground_truth_dict["state_action_risk"]["state"].append(list(
-                        state_action_ground_truth_state))
-                    self._risk_ground_truth_dict["state_action_risk"]["action"].append(list(motor_action))
+                    self._risk_ground_truth_dict["state_action_risk"]["state"].append(
+                        state_action_ground_truth_state.tolist())
+                    self._risk_ground_truth_dict["state_action_risk"]["action"].append(motor_action.tolist())
                     self._risk_ground_truth_dict["state_action_risk"]["risk"].append(ground_truth_risk)
+                    self._risk_ground_truth_dict["state_action_risk"]["self_collision"].append(self_collision)
+                    self._risk_ground_truth_dict["state_action_risk"]["static_obstacle"].append(static_obstacle)
+                    self._risk_ground_truth_dict["state_action_risk"]["moving_obstacle"].append(moving_obstacle)
 
                     if state_ground_truth_state is not None:
-                        self._risk_ground_truth_dict["state_risk"]["state"].append(list(
-                            state_ground_truth_state))
+                        self._risk_ground_truth_dict["state_risk"]["state"].append(state_ground_truth_state.tolist())
                         self._risk_ground_truth_dict["state_risk"]["risk"].append(ground_truth_risk)
+                        self._risk_ground_truth_dict["state_risk"]["self_collision"].append(self_collision)
+                        self._risk_ground_truth_dict["state_risk"]["static_obstacle"].append(static_obstacle)
+                        self._risk_ground_truth_dict["state_risk"]["moving_obstacle"].append(moving_obstacle)
 
             else:
                 raise NotImplementedError()
 
         if risk_input is not None:
             risk_input = np.float32(risk_input.reshape((1, -1)))
-            with self._risk_network_graph.as_default():
-                risk_prediction = self._risk_network.predict(x=risk_input)
-            self._last_risk_prediction = risk_prediction[0][0]
+
+            risk_input_tensor = torch.from_numpy(risk_input).to(self._risk_network_device)
+            with torch.no_grad():
+                risk_prediction = self._risk_network(risk_input_tensor)
+            self._last_risk_prediction = risk_prediction[0].item()
+
             if self._last_risk_prediction >= self._risk_threshold:
                 action_considered_as_risky = True
 
@@ -1631,7 +1667,9 @@ class SafeMotionsBase(gym.Env):
                             dtype=np.float64)
                         simulated_action = self._get_action_from_backup_action(backup_action)
 
-                    _, _, simulation_done, _ = self.step(simulated_action)
+                    _, _, termination, truncation, _ = self.step(simulated_action)
+
+                    simulation_done = termination or truncation
 
                     if not simulation_done and ground_truth_state is None:
                         ground_truth_state = self._risk_observation.copy()
@@ -1702,10 +1740,12 @@ class SafeMotionsBase(gym.Env):
             p.disconnect(physicsClientId=i)
 
     def set_seed(self, seed=None):
-        self._fixed_seed = seed
+        self._seed = seed
         if seed is not None:
+            logging.info("Setting seed to %s", self._seed)
             np.random.seed(seed)
             random.seed(seed)
+            super().reset(seed=seed)
 
         return [seed]
 

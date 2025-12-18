@@ -174,7 +174,7 @@ class RewardBase(ABC, SafeMotionsBase):
             # Baseline: 10 Hz
             reward = reward * self._trajectory_time_step / 0.1
 
-        for key in ['average', 'min', 'max']:
+        for key in ['mean', 'min', 'max']:
             info[key].update(reward=reward)
 
         # add information about the jerk as custom metric
@@ -187,8 +187,8 @@ class RewardBase(ABC, SafeMotionsBase):
         jerk_violation = 0.0
 
         for j in range(self._num_manip_joints):
-            info['average']['joint_{}_jerk'.format(j)] = curr_joint_jerk_rel[j]
-            info['average']['joint_{}_jerk_abs'.format(j)] = abs(curr_joint_jerk_rel[j])
+            info['mean']['joint_{}_jerk'.format(j)] = curr_joint_jerk_rel[j]
+            info['mean']['joint_{}_jerk_abs'.format(j)] = abs(curr_joint_jerk_rel[j])
             info['max']['joint_{}_jerk'.format(j)] = curr_joint_jerk_rel[j]
             info['min']['joint_{}_jerk'.format(j)] = curr_joint_jerk_rel[j]
 
@@ -301,7 +301,7 @@ class TargetPointReachingReward(RewardBase):
         return reward_maximum_relevant_distance
 
     def _get_reward(self):
-        info = {'average': {}, 'min': {}, 'max': {}}
+        info = {'mean': {}, 'min': {}, 'max': {}}
 
         target_point_reward = 0
         action_punishment = 0
@@ -379,7 +379,7 @@ class TargetPointReachingReward(RewardBase):
 
             reward = reward - braking_trajectory_punishment
 
-        for key in ['average', 'min', 'max']:
+        for key in ['mean', 'min', 'max']:
             info[key].update(action_punishment=action_punishment,
                              adaptation_punishment=adaptation_punishment,
                              end_min_distance_punishment=end_min_distance_punishment,
@@ -430,7 +430,7 @@ class CollisionAvoidanceReward(RewardBase):
         return self._compute_reward_maximum_relevant_distance_collision_avoidance()
 
     def _get_reward(self):
-        info = {'average': {}, 'min': {}, 'max': {}}
+        info = {'mean': {}, 'min': {}, 'max': {}}
 
         reward = 0
         action_punishment = 1.0
@@ -487,7 +487,7 @@ class CollisionAvoidanceReward(RewardBase):
             + episode_termination_bonus \
             + episode_early_termination_punishment
 
-        for key in ['average', 'min', 'max']:
+        for key in ['mean', 'min', 'max']:
             info[key].update(action_punishment=action_punishment,
                              self_collision_reward=self_collision_reward,
                              static_obstacles_collision_reward=static_obstacles_collision_reward,

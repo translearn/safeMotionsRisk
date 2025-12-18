@@ -25,14 +25,21 @@ class SafeMotionsEnv(actions.AccelerationPredictionBoundedJerkAccVelPos,
                  **kwargs):
         super().__init__(*vargs, **kwargs)
 
-    def _process_end_of_episode(self, observation, reward, done, info):
-        observation, reward, done, info = super()._process_end_of_episode(observation, reward, done, info)
+    def _process_end_of_episode(self, observation, reward, info):
+        observation, reward, termination, truncation, info = super()._process_end_of_episode(observation, reward, info)
 
         if 'obstacles_num_target_points_reached' in info:
             info['obstacles_num_target_points_reached_per_time'] = info['obstacles_num_target_points_reached'] / \
                                                                    (self._episode_length * self._trajectory_time_step)
 
-        return observation, reward, done, info
+        # https://farama.org/Gymnasium-Terminated-Truncated-Step-API
+        # distinguish here between termination and truncation if required
+
+        if self._use_target_points and self._termination_reason == self.TERMINATION_TRAJECTORY_LENGTH:
+            termination = False
+            truncation = True
+
+        return observation, reward, termination, truncation, info
 
 
 class SafeMotionsEnvCollisionAvoidance(actions.AccelerationPredictionBoundedJerkAccVelPos,

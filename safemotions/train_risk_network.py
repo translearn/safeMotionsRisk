@@ -1,45 +1,38 @@
-# Note: This code makes use of code snippets provided under the following links
-# https://towardsdatascience.com/how-to-train-a-classification-model-with-tensorflow-in-10-minutes-fd2b7cfba86
-# https://medium.com/analytics-vidhya/write-your-own-custom-data-generator-for-tensorflow-keras-1252b64e41c3
-
-import numpy as np
 import os
-import json
+import inspect
+import sys
 import argparse
-import errno
+import json
+import random
 import datetime
 import shutil
-import tensorflow as tf
-from tensorflow.keras.regularizers import l2
-from tensorflow.keras.callbacks import TensorBoard, ModelCheckpoint
-import random
-from ast import literal_eval
-import pandas as pd
 from pathlib import Path
+from ast import literal_eval
 
-class RiskDataGenerator(tf.keras.utils.Sequence):
+import numpy as np
+import pandas as pd
+import torch
+import torch.nn as nn
+from torch.utils.data import Dataset, DataLoader, Sampler
+from torch.optim import Adam
+from torch.utils.tensorboard import SummaryWriter
+from sklearn.metrics import (accuracy_score, precision_score, recall_score, roc_auc_score,
+                             precision_recall_curve, auc)
 
-    def __init__(self,
-                 data_dir,
-                 batch_size,
-                 risky_state_rebalancing_fraction=None,
-                 shuffle=False):
+current_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+sys.path.append(os.path.dirname(current_dir))
 
-        self._data_dir = data_dir
-        self._batch_size = batch_size
-        self._risky_state_rebalancing_fraction = risky_state_rebalancing_fraction
-        self._shuffle = shuffle
+from safemotions.model.risk_network import RiskNetwork
+
+# Dataset with rebalancing indices logic
+class RiskDataset(Dataset):
+    def __init__(self, data_dir):
+        self.x, self.y = [], []
         self._state_action_risk = False
         self._state_size = None
         self._action_size = None
-        self._x = []
-        self._y = []
 
-        if risky_state_rebalancing_fraction is not None and not shuffle:
-            raise ValueError("risky_state_rebalancing_fraction requires shuffle to be True")
-
-        # list all csv files in data_dir
-        for csv_file in sorted(Path(self._data_dir).glob('*.csv')):
+        for csv_file in sorted(Path(data_dir).glob("*.csv")):
             df = pd.read_csv(csv_file, converters={'state': literal_eval, 'action': literal_eval})
             df_y = list(df["risk"])
             if "action" in df:
@@ -52,89 +45,21 @@ class RiskDataGenerator(tf.keras.utils.Sequence):
             else:
                 df_x = list(df["state"])
                 self._state_size = len(df_x[0])
-            self._x.extend(df_x)
-            self._y.extend(df_y)
+            self.x.extend(df_x)
+            self.y.extend(df_y)
 
-        if not self._x:
-            raise FileNotFoundError("Could not find valid data files in {}.".format(self._data_dir))
+        self.x = np.array(self.x, dtype=np.float32)
+        self.y = np.array(self.y, dtype=np.float32)
+        assert len(self.x) == len(self.y)
 
-        self._len = int(len(self._x) / self._batch_size)
-        if self._len == 0:
-            # batch_size bigger than dataset
-            self._batch_size = len(self._x)
-            self._len = 1
-
-        if not self._shuffle:
-            # remove last entries that do not fit into a full batch
-            self._x = self._x[:self._len * self._batch_size]
-            self._y = self._y[:self._len * self._batch_size]
-
-        # convert lists to numpy array
-        self._x = np.array(self._x)
-        self._y = np.array(self._y)
-
-        if self._risky_state_rebalancing_fraction is not None:
-            self._batch_size_risky = int(self._risky_state_rebalancing_fraction * self._batch_size)
-            self._batch_size_not_risky = self._batch_size - self._batch_size_risky
-            risky_indices = self._y == 1.0
-
-            self._x_risky = self._x[risky_indices]
-            self._y_risky = self._y[risky_indices]
-
-            if len(self._x_risky) < self._batch_size_risky:
-                raise ValueError("Not enough risky datapoints for the selected batch_size and rebalancing_fraction "
-                                 "(required {}, available {}.)".format(self._batch_size_risky, len(self._x_risky)))
-
-            self._x_not_risky = self._x[np.logical_not(risky_indices)]
-            self._y_not_risky = self._y[np.logical_not(risky_indices)]
-
-            if len(self._x_not_risky) < self._batch_size_not_risky:
-                raise ValueError("Not enough unrisky datapoints for the selected batch_size and rebalancing_fraction "
-                                 "(required {}, available {}).".format(self._batch_size_not_risky,
-                                                                      len(self._x_not_risky)))
-
-            self._random_indices_risky = np.array([1] * self._batch_size_risky
-                                                  + [0] * (len(self._x_risky) - self._batch_size_risky), dtype=bool)
-            self._random_indices_not_risky = np.array([1] * self._batch_size_not_risky
-                                                      + [0] * (len(self._x_not_risky) - self._batch_size_not_risky),
-                                                      dtype=bool)
-            np.random.shuffle(self._random_indices_risky)
-            np.random.shuffle(self._random_indices_not_risky)
-
-        else:
-            if self._shuffle:
-                self._random_indices = np.array([1] * self._batch_size + [0] * (len(self._x) - self._batch_size),
-                                                dtype=bool)
-                np.random.shuffle(self._random_indices)
-            else:
-                self._random_indices = None
-
-    def on_epoch_end(self):
-        if self._shuffle:
-            if self._risky_state_rebalancing_fraction is not None:
-                np.random.shuffle(self._random_indices_risky)
-                np.random.shuffle(self._random_indices_not_risky)
-            else:
-                np.random.shuffle(self._random_indices)
-
-    def __getitem__(self, index):
-        if self._shuffle:
-            if self._risky_state_rebalancing_fraction is not None:
-                x_batch = np.concatenate((self._x_not_risky[self._random_indices_not_risky],
-                                          self._x_risky[self._random_indices_risky]))
-                y_batch = np.concatenate((self._y_not_risky[self._random_indices_not_risky],
-                                          self._y_risky[self._random_indices_risky]))
-            else:
-                x_batch = self._x[self._random_indices]
-                y_batch = self._y[self._random_indices]
-        else:
-            x_batch = self._x[index * self._batch_size:(index + 1) * self._batch_size]
-            y_batch = self._y[index * self._batch_size:(index + 1) * self._batch_size]
-
-        return x_batch, y_batch
+        self.risky_indices = np.where(self.y == 1.0)[0]
+        self.not_risky_indices = np.where(self.y == 0.0)[0]
 
     def __len__(self):
-        return self._len
+        return len(self.x)
+
+    def __getitem__(self, idx):
+        return torch.tensor(self.x[idx]), torch.tensor(self.y[idx])
 
     @property
     def state_action_risk(self):
@@ -149,27 +74,162 @@ class RiskDataGenerator(tf.keras.utils.Sequence):
         return self._action_size
 
 
+class RebalancingSampler(Sampler):
+    def __init__(self, dataset, batch_size, risky_fraction):
+        self.dataset = dataset
+        self.batch_size = batch_size
+        self.risky_fraction = risky_fraction
+        self.num_risky = int(batch_size * risky_fraction)
+        self.num_not_risky = batch_size - self.num_risky
+
+        if len(dataset.risky_indices) < self.num_risky:
+            raise ValueError(f"Not enough risky datapoints for batch rebalancing: required {self.num_risky}, "
+                             f"but got {len(dataset.risky_indices)}")
+        if len(dataset.not_risky_indices) < self.num_not_risky:
+            raise ValueError(f"Not enough non-risky datapoints for batch rebalancing: required {self.num_not_risky}, "
+                             f"but got {len(dataset.not_risky_indices)}")
+
+        self.num_batches = min(len(dataset.risky_indices) // self.num_risky,
+                               len(dataset.not_risky_indices) // self.num_not_risky)
+
+        print("Batches train dataset with rebalancing", self.num_batches)
+
+    def __iter__(self):
+        risky_idx = np.random.permutation(self.dataset.risky_indices)
+        not_risky_idx = np.random.permutation(self.dataset.not_risky_indices)
+
+        for i in range(self.num_batches):
+            batch_indices = np.concatenate((risky_idx[i*self.num_risky:(i+1)*self.num_risky],
+                                            not_risky_idx[i*self.num_not_risky:(i+1)*self.num_not_risky]))
+            np.random.shuffle(batch_indices)
+            yield from batch_indices.tolist()
+
+    def __len__(self):
+        return self.num_batches * self.batch_size
+
+
+def calculate_metrics_at_thresholds(targets, outputs, thresholds):
+    metrics = {}
+    outputs = np.array(outputs)
+    targets = np.array(targets)
+
+    for thr in thresholds:
+        preds = (outputs > thr).astype(int)
+        precision = precision_score(targets, preds, zero_division=0)
+        recall = recall_score(targets, preds, zero_division=0)
+        metrics[f'precision_{thr}'] = precision
+        metrics[f'recall_{thr}'] = recall
+
+    return metrics
+
+def train(model, train_loader, val_loader, epoch_compensation_factor, args):
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    model = model.to(device)
+
+    pos_weight = args.risky_state_class_weight if args.risky_state_class_weight is not None else 1.0
+    neg_weight = 1.0  # negative class weight
+
+    loss_fn = nn.BCELoss(reduction='none')
+    optimizer = Adam(model.parameters(), lr=args.lr, weight_decay=args.l2_regularization, decoupled_weight_decay=True)
+    writer = SummaryWriter(log_dir=args.logdir)
+
+    thresholds = [0.01, 0.02, 0.03, 0.04, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5]
+
+    for epoch in range(int(args.epochs * epoch_compensation_factor)):
+        model.train()
+        epoch_compensated = round(epoch / epoch_compensation_factor, 2)
+        train_loss, preds, targets, outputs = 0.0, [], [], []
+        for inputs, labels in train_loader:
+            inputs, labels = inputs.to(device), labels.to(device)
+            output = model(inputs)
+
+            # Create the sample weights based on their class
+            weights = torch.where(labels == 1, pos_weight, neg_weight)
+
+            # Calculate loss per sample, multiply by weights, then average
+            elementwise_loss = loss_fn(output, labels)
+            loss = (elementwise_loss * weights).mean()
+
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
+            train_loss += loss.item() * inputs.size(0)
+            outputs.extend(output.detach().cpu().numpy())
+            preds.extend((output.detach().cpu().numpy() > 0.5).astype(int))
+            targets.extend(labels.cpu().numpy())
+
+        acc = accuracy_score(targets, preds)
+        roc_auc = roc_auc_score(targets, outputs)
+        metric_dict = calculate_metrics_at_thresholds(targets, outputs, thresholds)
+
+        precision, recall, _ = precision_recall_curve(targets, outputs)
+        pr_auc = auc(recall, precision)
+
+        writer.add_scalar('Loss/train', train_loss / len(train_loader.dataset), epoch_compensated)
+        writer.add_scalar('Accuracy/train', acc, epoch_compensated)
+        writer.add_scalar('ROC_AUC/train', roc_auc, epoch_compensated)
+        writer.add_scalar('PR_AUC/train', pr_auc, epoch_compensated)
+        for k, v in metric_dict.items():
+            writer.add_scalar(f'{k}/train', v, epoch_compensated)
+
+        print(f"Epoch {epoch_compensated + 1}/{args.epochs} - Train Loss: {train_loss / len(train_loader.dataset):.4f} "
+              f"Acc: {acc:.4f} ROC AUC: {roc_auc:.4f} PR AUC: {pr_auc:.4f}")
+
+        if val_loader is not None:
+            model.eval()
+            val_loss, val_preds, val_targets, val_outputs = 0.0, [], [], []
+            with torch.no_grad():
+                for inputs, labels in val_loader:
+                    inputs, labels = inputs.to(device), labels.to(device)
+                    output = model(inputs)
+
+                    # Create the sample weights based on their class
+                    weights = torch.where(labels == 1, pos_weight, neg_weight)
+
+                    # Calculate loss per sample, multiply by weights, then average
+                    elementwise_loss = loss_fn(output, labels)
+                    loss = (elementwise_loss * weights).mean()
+
+                    val_loss += loss.item() * inputs.size(0)
+                    val_outputs.extend(output.cpu().numpy())
+                    val_preds.extend((output.cpu().numpy() > 0.5).astype(int))
+                    val_targets.extend(labels.cpu().numpy())
+
+            val_acc = accuracy_score(val_targets, val_preds)
+            val_roc_auc = roc_auc_score(val_targets, val_outputs)
+            val_metric_dict = calculate_metrics_at_thresholds(val_targets, val_outputs, thresholds)
+
+            val_precision, val_recall, _ = precision_recall_curve(val_targets, val_outputs)
+            val_pr_auc = auc(val_recall, val_precision)
+
+            writer.add_scalar('Loss/val', val_loss / len(val_loader.dataset), epoch_compensated)
+            writer.add_scalar('Accuracy/val', val_acc, epoch_compensated)
+            writer.add_scalar('ROC_AUC/val', val_roc_auc, epoch_compensated)
+            writer.add_scalar('PR_AUC/val', val_pr_auc, epoch_compensated)
+            for k, v in val_metric_dict.items():
+                writer.add_scalar(f'{k}/val', v, epoch_compensated)
+
+            print(f"Epoch {epoch_compensated + 1}/{args.epochs} - Val Loss: {val_loss / len(val_loader.dataset):.4f} "
+                  f"Acc: {val_acc:.4f} ROC AUC: {val_roc_auc:.4f} PR AUC: {val_pr_auc:.4f}")
+
+    writer.close()
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--risk_data_dir', type=str, required=True, default=None)
-    parser.add_argument('--experiment_name', type=str, required=True, default=None)
+    parser.add_argument('--risk_data_dir', type=str, required=True)
+    parser.add_argument('--experiment_name', type=str, required=True)
     parser.add_argument('--hidden_layer_activation', default='relu', choices=['relu', 'selu', 'tanh', 'sigmoid', 'elu',
                                                                               'gelu', 'swish', 'leaky_relu'])
     parser.add_argument('--last_layer_activation', default='sigmoid', choices=['linear', 'sigmoid'])
     parser.add_argument('--fcnet_hiddens', type=json.loads, default=[128, 256, 256])
-    parser.add_argument('--precision_threshold', type=float, default=0.5)
-    parser.add_argument('--recall_threshold', type=float, default=0.5)
-    parser.add_argument('--risky_state_class_weight', type=float, default=None)
-    parser.add_argument('--risky_state_rebalancing_fraction', type=float, default=None)
     parser.add_argument('--batch_size', type=int, default=1000)
     parser.add_argument('--shuffle', action='store_true', default=False)
     parser.add_argument('--epochs', type=int, default=100)
-    parser.add_argument('--epochs_per_checkpoint', type=int, default=None)
+    parser.add_argument('--risky_state_class_weight', type=float, default=None)
     parser.add_argument('--lr', type=float, default=0.03)
     parser.add_argument('--dropout', type=float, default=None)
-    parser.add_argument('--kernel_constraint', type=float, default=None)
-    parser.add_argument('--kernel_regularizer', type=float, default=None)
-    parser.add_argument('--bias_regularizer', type=float, default=None)
+    parser.add_argument('--l2_regularization', type=float, default=0.0)
+    parser.add_argument('--risky_state_rebalancing_fraction', type=float, default=None)
     parser.add_argument('--logdir', type=str, default=None)
     parser.add_argument('--seed', type=int, default=None)
 
@@ -177,36 +237,51 @@ if __name__ == '__main__':
 
     if args.seed is not None:
         random.seed(args.seed)
-        tf.random.set_seed(args.seed)
         np.random.seed(args.seed)
+        torch.manual_seed(args.seed)
+        if torch.cuda.is_available():
+            torch.cuda.manual_seed_all(args.seed)
 
-    training_data_generator = RiskDataGenerator(data_dir=os.path.join(args.risk_data_dir, "train"),
-                                                batch_size=args.batch_size,
-                                                risky_state_rebalancing_fraction=args.risky_state_rebalancing_fraction,
-                                                shuffle=args.shuffle)
+    training_data_dir = os.path.join(args.risk_data_dir, "train")
+    test_data_dir = os.path.join(args.risk_data_dir, "test")
 
-    test_data_generator = RiskDataGenerator(data_dir=os.path.join(args.risk_data_dir, "test"),
-                                            batch_size=args.batch_size,
-                                            shuffle=args.shuffle)
+    train_dataset = RiskDataset(training_data_dir)
+    num_batches_train_dataset = np.ceil(len(train_dataset) / args.batch_size)
+
+    print("Batches train dataset without rebalancing", num_batches_train_dataset)
+
+    test_dataset = RiskDataset(test_data_dir)
+    num_batches_test_dataset = np.ceil(len(test_dataset) / args.batch_size)
+    print("Batches test dataset", num_batches_test_dataset)
+
+    if args.risky_state_rebalancing_fraction is not None:
+        sampler = RebalancingSampler(train_dataset, batch_size=args.batch_size,
+                                     risky_fraction=args.risky_state_rebalancing_fraction)
+
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, sampler=sampler)
+        epoch_compensation_factor = num_batches_train_dataset / sampler.num_batches
+    else:
+        train_loader = DataLoader(train_dataset, batch_size=args.batch_size, shuffle=args.shuffle)
+        epoch_compensation_factor = 1.0
+
+    test_loader = DataLoader(test_dataset, batch_size=args.batch_size, shuffle=False)
+
+    input_size = train_dataset.x.shape[1]
+
+    risk_network_config = {'input_size': input_size,
+                           'fcnet_hiddens': args.fcnet_hiddens,
+                           'dropout': args.dropout,
+                           'activation': args.hidden_layer_activation,
+                           'last_activation': args.last_layer_activation}
+
+    model = RiskNetwork(**risk_network_config)
 
     log_dir = os.path.join(Path.home(), "risk_results") if args.logdir is None else args.logdir
-    # add state_risk / state_action_risk folder
-    if training_data_generator.state_action_risk:
-        log_dir = os.path.join(log_dir, "state_action_risk")
-    else:
-        log_dir = os.path.join(log_dir, "state_risk")
-    # add args.experiment_name folder and current time stamp
     log_dir = os.path.join(log_dir, args.experiment_name, datetime.datetime.now().strftime('%Y%m%dT%H%M%S'))
+    os.makedirs(log_dir, exist_ok=True)
+    args.logdir = log_dir
 
-    if not os.path.exists(log_dir):
-        try:
-            os.makedirs(log_dir)
-        except OSError as exc:
-            if exc.errno != errno.EEXIST:
-                raise exc
-
-    # copy config file from data dir to log_dir if available
-
+    # Copy config file if available
     config_file_path = os.path.join(os.path.dirname(args.risk_data_dir), "risk_config.json")
     if os.path.isfile(config_file_path):
         destination_path = os.path.join(log_dir, "risk_config.json")
@@ -216,124 +291,26 @@ if __name__ == '__main__':
             config = json.load(f)
 
         if "observation_size" in config:
-            if training_data_generator.state_size != config["observation_size"]:
+            if train_dataset.state_size != config["observation_size"]:
                 raise ValueError("The observation size of the risk data ({}) does not match with the "
                                  "observations size specified in risk_config.json ({}).".format(
-                                    training_data_generator.state_size, config["observation_size"]))
+                    train_dataset.state_size, config["observation_size"]))
         else:
-            config["observation_size"] = training_data_generator.state_size
+            config["observation_size"] = train_dataset.state_size
 
         # action_size to config
-        config["action_size"] = training_data_generator.action_size
+        config["action_size"] = train_dataset.action_size
+        config["risk_network_config"] = risk_network_config
 
         # store updated config
         with open(destination_path, 'w') as f:
             f.write(json.dumps(config, sort_keys=True))
             f.flush()
 
-    # store arguments
+    # Save arguments
     with open(os.path.join(log_dir, "arguments.json"), 'w') as f:
-        f.write(json.dumps(vars(args), sort_keys=True))
-        f.flush()
+        json.dump(vars(args), f, sort_keys=True, indent=4)
 
-    callbacks = []
+    train(model, train_loader, test_loader, epoch_compensation_factor, args)
 
-    # tensorboard callback
-    tensorboard = TensorBoard(log_dir=log_dir, histogram_freq=0,
-                              write_graph=True, write_images=False)
-    callbacks.append(tensorboard)
-
-    if args.epochs_per_checkpoint is not None:
-        # checkpoint callback
-        checkpoint_callback = ModelCheckpoint(filepath=log_dir,
-                                              save_freq=args.epochs_per_checkpoint,
-                                              save_weights_only=False)
-        callbacks.append(checkpoint_callback)
-
-    if args.kernel_regularizer is not None:
-        kernel_regularizer = l2(args.kernel_regularizer)
-    else:
-        kernel_regularizer = None
-
-    if args.bias_regularizer is not None:
-        bias_regularizer = l2(args.bias_regularizer)
-    else:
-        bias_regularizer = None
-
-    if args.kernel_constraint is not None:
-        kernel_constraint = tf.keras.constraints.MaxNorm(args.kernel_constraint)
-    else:
-        kernel_constraint = None
-
-    if args.risky_state_class_weight is not None:
-        class_weight = {0: 1.0, 1: args.risky_state_class_weight}
-    else:
-        class_weight = None
-
-    model = tf.keras.Sequential()
-    for i in range(len(args.fcnet_hiddens)):
-        model.add(tf.keras.layers.Dense(args.fcnet_hiddens[i], activation=args.hidden_layer_activation,
-                                        kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer,
-                                        kernel_constraint=kernel_constraint))
-        if args.dropout is not None:
-            model.add(tf.keras.layers.Dropout(args.dropout))
-    # last layer
-    model.add(tf.keras.layers.Dense(1, activation=args.last_layer_activation,
-                                    kernel_regularizer=kernel_regularizer, bias_regularizer=bias_regularizer))
-
-    model.compile(
-        loss=tf.keras.losses.binary_crossentropy,
-        optimizer=tf.keras.optimizers.Adam(learning_rate=args.lr),
-        metrics=[
-            tf.keras.metrics.BinaryAccuracy(name='accuracy'),
-            tf.keras.metrics.Precision(name='precision_0.01', thresholds=0.01),
-            tf.keras.metrics.Precision(name='precision_0.02', thresholds=0.02),
-            tf.keras.metrics.Precision(name='precision_0.03', thresholds=0.03),
-            tf.keras.metrics.Precision(name='precision_0.04', thresholds=0.04),
-            tf.keras.metrics.Precision(name='precision_0.05', thresholds=0.05),
-            tf.keras.metrics.Precision(name='precision_0.1', thresholds=0.1),
-            tf.keras.metrics.Precision(name='precision_0.2', thresholds=0.2),
-            tf.keras.metrics.Precision(name='precision_0.3', thresholds=0.3),
-            tf.keras.metrics.Precision(name='precision_0.4', thresholds=0.4),
-            tf.keras.metrics.Precision(name='precision_0.5', thresholds=0.5),
-            tf.keras.metrics.Precision(name='precision_0.6', thresholds=0.6),
-            tf.keras.metrics.Precision(name='precision_0.7', thresholds=0.7),
-            tf.keras.metrics.Precision(name='precision_0.8', thresholds=0.8),
-            tf.keras.metrics.Precision(name='precision_0.9', thresholds=0.9),
-            tf.keras.metrics.Recall(name='recall_0.01', thresholds=0.01),
-            tf.keras.metrics.Recall(name='recall_0.02', thresholds=0.02),
-            tf.keras.metrics.Recall(name='recall_0.03', thresholds=0.03),
-            tf.keras.metrics.Recall(name='recall_0.04', thresholds=0.04),
-            tf.keras.metrics.Recall(name='recall_0.05', thresholds=0.05),
-            tf.keras.metrics.Recall(name='recall_0.1', thresholds=0.1),
-            tf.keras.metrics.Recall(name='recall_0.2', thresholds=0.2),
-            tf.keras.metrics.Recall(name='recall_0.3', thresholds=0.3),
-            tf.keras.metrics.Recall(name='recall_0.4', thresholds=0.4),
-            tf.keras.metrics.Recall(name='recall_0.5', thresholds=0.5),
-            tf.keras.metrics.Recall(name='recall_0.6', thresholds=0.6),
-            tf.keras.metrics.Recall(name='recall_0.7', thresholds=0.7),
-            tf.keras.metrics.Recall(name='recall_0.8', thresholds=0.8),
-            tf.keras.metrics.Recall(name='recall_0.9', thresholds=0.9),
-            tf.keras.metrics.TruePositives(name='tp'),
-            tf.keras.metrics.FalsePositives(name='fp'),
-            tf.keras.metrics.TrueNegatives(name='tn'),
-            tf.keras.metrics.FalseNegatives(name='fn'),
-            tf.keras.metrics.AUC(name='auc'),
-            tf.keras.metrics.AUC(name='prc', curve='PR')
-        ]
-    )
-
-    history = model.fit(x=training_data_generator,
-                        batch_size=None,
-                        epochs=args.epochs,
-                        validation_data=test_data_generator,
-                        validation_freq=1,
-                        class_weight=class_weight,
-                        shuffle=args.shuffle,
-                        callbacks=callbacks)
-
-    model.save(filepath=log_dir)
-
-
-
-
+    torch.save(model.state_dict(), os.path.join(log_dir, "model.pt"))

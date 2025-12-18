@@ -7,7 +7,7 @@ import logging
 from abc import ABC
 
 import numpy as np
-from gym.spaces import Box
+from gymnasium.spaces import Box
 from klimits import normalize as normalize_array
 from klimits import interpolate_acceleration_batch as interpolate_acceleration_batch
 from klimits import interpolate_position_batch as interpolate_position_batch
@@ -164,7 +164,9 @@ class SafeObservation(ABC, SafeMotionsBase):
                     dtype=np.float64)
                 simulated_action = self._get_action_from_backup_action(backup_action)
 
-                _, _, simulation_done, _ = self.step(simulated_action)
+                _, _, simulation_termination, simulation_truncation, _ = self.step(simulated_action)
+                simulation_done = simulation_termination or simulation_truncation
+
                 if simulation_done:
                     if self.termination_reason != self.TERMINATION_TRAJECTORY_LENGTH:
                         initial_state_safe = False
@@ -182,9 +184,11 @@ class SafeObservation(ABC, SafeMotionsBase):
 
             if not initial_state_safe:
                 self._episode_counter -= 1
-                observation = self.reset(repeated_reset=True)
+                observation, _ = self.reset(repeated_reset=True)
 
-        return observation
+        info = {}
+
+        return observation, info
 
     def _prepare_for_next_action(self):
         super()._prepare_for_next_action()
@@ -348,7 +352,7 @@ class SafeObservation(ABC, SafeMotionsBase):
                                            + planet_rel_obs
                                            + human_rel_obs, dtype=np.float32)
 
-        observation = np.core.umath.clip(observation_not_clipped, -1, 1)
+        observation = np.clip(observation_not_clipped, -1, 1)
 
         self._kinematic_observation = observation[:self._kinematic_observation_size]
 
@@ -362,7 +366,7 @@ class SafeObservation(ABC, SafeMotionsBase):
                 planet_rel_obs=planet_rel_obs,
                 human_rel_obs=human_rel_obs)
 
-        info = {'average': {},
+        info = {'mean': {},
                 'max': {},
                 'min': {}}
 
@@ -372,8 +376,8 @@ class SafeObservation(ABC, SafeMotionsBase):
 
         for j in range(self._num_manip_joints):
 
-            info['average']['joint_{}_pos'.format(j)] = curr_joint_position_rel_obs[j]
-            info['average']['joint_{}_pos_abs'.format(j)] = abs(curr_joint_position_rel_obs[j])
+            info['mean']['joint_{}_pos'.format(j)] = curr_joint_position_rel_obs[j]
+            info['mean']['joint_{}_pos_abs'.format(j)] = abs(curr_joint_position_rel_obs[j])
             info['max']['joint_{}_pos'.format(j)] = curr_joint_position_rel_obs[j]
             info['min']['joint_{}_pos'.format(j)] = curr_joint_position_rel_obs[j]
             if abs(curr_joint_position_rel_obs[j]) > 1.001:
@@ -382,8 +386,8 @@ class SafeObservation(ABC, SafeMotionsBase):
                                 curr_joint_position_rel_obs[j])
                 pos_violation = 1.0
 
-            info['average']['joint_{}_vel'.format(j)] = curr_joint_velocity_rel_obs[j]
-            info['average']['joint_{}_vel_abs'.format(j)] = abs(curr_joint_velocity_rel_obs[j])
+            info['mean']['joint_{}_vel'.format(j)] = curr_joint_velocity_rel_obs[j]
+            info['mean']['joint_{}_vel_abs'.format(j)] = abs(curr_joint_velocity_rel_obs[j])
             info['max']['joint_{}_vel'.format(j)] = curr_joint_velocity_rel_obs[j]
             info['min']['joint_{}_vel'.format(j)] = curr_joint_velocity_rel_obs[j]
             if abs(curr_joint_velocity_rel_obs[j]) > 1.001:
@@ -392,8 +396,8 @@ class SafeObservation(ABC, SafeMotionsBase):
                                 curr_joint_velocity_rel_obs[j])
                 vel_violation = 1.0
 
-            info['average']['joint_{}_acc'.format(j)] = curr_joint_acceleration_rel_obs[j]
-            info['average']['joint_{}_acc_abs'.format(j)] = abs(curr_joint_acceleration_rel_obs[j])
+            info['mean']['joint_{}_acc'.format(j)] = curr_joint_acceleration_rel_obs[j]
+            info['mean']['joint_{}_acc_abs'.format(j)] = abs(curr_joint_acceleration_rel_obs[j])
             info['max']['joint_{}_acc'.format(j)] = curr_joint_acceleration_rel_obs[j]
             info['min']['joint_{}_acc'.format(j)] = curr_joint_acceleration_rel_obs[j]
             if abs(curr_joint_acceleration_rel_obs[j]) > 1.001:
@@ -402,15 +406,15 @@ class SafeObservation(ABC, SafeMotionsBase):
                                 curr_joint_acceleration_rel_obs[j])
                 acc_violation = 1.0
 
-        info['average']['joint_vel_norm'] = np.linalg.norm(curr_joint_velocity_rel_obs)
+        info['mean']['joint_vel_norm'] = np.linalg.norm(curr_joint_velocity_rel_obs)
         info['max']['joint_pos_violation'] = pos_violation
         info['max']['joint_vel_violation'] = vel_violation
         info['max']['joint_acc_violation'] = acc_violation
 
         if np.array_equal(observation, observation_not_clipped):
-            info['average']['observation_clipping_rate'] = 0.0
+            info['mean']['observation_clipping_rate'] = 0.0
         else:
-            info['average']['observation_clipping_rate'] = 1.0
+            info['mean']['observation_clipping_rate'] = 1.0
 
         logging.debug("Observation %s: %s", self._episode_length, np.asarray(observation))
 
@@ -428,7 +432,7 @@ class SafeObservation(ABC, SafeMotionsBase):
                      + planet_rel_obs
                      + human_rel_obs, dtype=np.float32)
 
-        return np.core.umath.clip(risk_observation_not_clipped, -1, 1)
+        return np.clip(risk_observation_not_clipped, -1, 1)
 
     @property
     def kinematic_observation(self):

@@ -149,10 +149,6 @@ class RiskDataReader:
     def action_size(self):
         return self._action_size
 
-    @property
-    def do_not_print_stats(self):
-        return self._do_not_print_stats
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()

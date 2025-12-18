@@ -90,5 +90,5 @@ class BrakingTrajectoryGenerator(object):
             next_acc_max_no_oscillation = next_acc_max
             next_acc_min_no_oscillation = next_acc_min
 
-        return np.core.umath.clip(end_acceleration, next_acc_min_no_oscillation, next_acc_max_no_oscillation), robot_stopped
+        return np.clip(end_acceleration, next_acc_min_no_oscillation, next_acc_max_no_oscillation), robot_stopped
         

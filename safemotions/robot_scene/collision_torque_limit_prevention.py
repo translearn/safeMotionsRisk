@@ -1435,6 +1435,10 @@ class ObstacleWrapperSim(ObstacleWrapperBase):
                         collision_between_robots_link_names):
                     self_collision_link_names += ["body", "head"]
 
+        elif self._robot_scene.robot_name.startswith("iiwa7") and not self._robot_scene.ball_machine_mode:
+            if link_name == "iiwa_link_7":
+                self_collision_link_names += ["iiwa_base_adapter", "iiwa_link_0"]
+
         if self._robot_scene.ball_machine_mode:
             ball_machine_link_list = [self._target_link_name]
             for i in range(self._robot_scene.num_robots):
@@ -4677,28 +4681,22 @@ class Human(ObstacleSim):
         self._use_fixed_seed = use_fixed_seed
 
         # load env with human as robot
-        if not os.path.isfile(self._human_network_checkpoint):
+        if not os.path.isdir(self._human_network_checkpoint):
             self._human_network_checkpoint = os.path.join(current_dir, "trained_networks",
                                                           self._human_network_checkpoint)
-            if not os.path.isfile(self._human_network_checkpoint):
-                raise ValueError("Could not find human_network_checkpoint {}".format(self._human_network_checkpoint))
 
-        import ray
-        from ray import tune
-        from ray.rllib import rollout
-        from ray.rllib.models import ModelCatalog
-        from ray.rllib.agents.callbacks import DefaultCallbacks
-        from safemotions.model.keras_fcnet_last_layer_activation import FullyConnectedNetworkLastLayerActivation
-
-        params_dir = os.path.dirname(os.path.dirname(self._human_network_checkpoint))
+        params_dir = os.path.dirname(self._human_network_checkpoint)
         params_path = os.path.join(params_dir, "params.json")
 
-        with open(params_path) as params_file:
-            checkpoint_config = json.load(params_file)
-        checkpoint_config['evaluation_interval'] = None
-        checkpoint_config['callbacks'] = DefaultCallbacks
-        checkpoint_config['num_workers'] = 0
-        checkpoint_config['explore'] = True  # the action generation is allowed to be stochastic
+        if not os.path.isfile(params_path):
+            params_path = os.path.join(self._human_network_checkpoint, "params.json")
+            self._human_network_checkpoint = os.path.join(self._human_network_checkpoint, "checkpoint")
+
+        if os.path.isfile(params_path):
+            with open(params_path, 'r') as params_file:
+                checkpoint_config = json.load(params_file)
+        else:
+            raise FileNotFoundError("Could not find human network params file {}.".format(params_path))
 
         env_config = checkpoint_config['env_config']
 
@@ -4728,13 +4726,10 @@ class Human(ObstacleSim):
             env_config['collision_avoidance_stay_in_state_probability'] = \
                 self._collision_avoidance_stay_in_state_probability
 
-        if "seed" in checkpoint_config:
-            checkpoint_config["seed"] = None
-
         if self._use_fixed_seed:
-            checkpoint_config["seed"] = np.random.randint(low=0, high=np.iinfo(np.int32).max)
-            # seeds numpy, random and the tf session
-            # (required for a deterministic action generation if checkpoint_config['explore'] == True)
+            import torch
+            torch.manual_seed(np.random.randint(low=0, high=np.iinfo(np.int32).max))
+            # (required for a deterministic action generation if explore == True)
             # the selected seed is sampled deterministically if the base environment is seeded
 
         if "seed" in env_config:
@@ -4745,22 +4740,19 @@ class Human(ObstacleSim):
             env_config["trajectory_duration"] = self._trajectory_duration + \
                                                        env_config["trajectory_time_step"]
 
-        ModelCatalog.register_custom_model('keras_fcnet_last_layer_activation',
-                                           FullyConnectedNetworkLastLayerActivation)
-
         import safemotions.envs.safe_motions_env as safe_motions_env
         Env = getattr(safe_motions_env, checkpoint_config['env'])
+        self._env = Env(**env_config)
 
-        tune.register_env(Env.__name__,
-                          lambda config_args: Env(**config_args))
+        from safemotions.utils.rl_agent import RLAgent
 
-        ray.init(dashboard_host="0.0.0.0", include_dashboard=False, ignore_reinit_error=True)
-
-        cls = rollout.get_trainable_cls("PPO")
-
-        self._agent = cls(env=Env.__name__, config=checkpoint_config)
-        self._agent.restore(self._human_network_checkpoint)
-        self._env = self._agent.workers.local_worker().env
+        self._agent = RLAgent(checkpoint_path=self._human_network_checkpoint,
+                              explore=True,  # the action generation is allowed to be stochastic
+                              clip_actions=checkpoint_config["clip_actions"],
+                              use_module_env_pipeline=False,
+                              observation_size=self._env.observation_size,
+                              action_size=self._env.robot_scene.num_manip_joints,
+                              policy_name="human")
 
         super().__init__(simulation_client_id=simulation_client_id,
                          obstacle_client_id=obstacle_client_id,
@@ -4794,7 +4786,7 @@ class Human(ObstacleSim):
         self._do_not_copy_keys = ['_env', '_agent', '_stored_env_variables', '_stored_human_variables']
 
     def reset(self):
-        self._last_observation = self._env.reset()
+        self._last_observation, _ = self._env.reset()
         self._control_step_counter = None
         self._obstacle_update_step_counter = None
         self._collision_detected = False
@@ -4840,7 +4832,7 @@ class Human(ObstacleSim):
         self._step_lock = True
 
     def process_step_outcome(self):
-        self._last_observation, reward, done, info = self._env.process_step_outcome(
+        self._last_observation, reward, termination, truncation, info = self._env.process_step_outcome(
             end_acceleration=self._end_acceleration,
             obstacle_client_update_setpoints=self._obstacle_client_update_setpoints,
             robot_stopped=self._robot_stopped,
@@ -4947,7 +4939,7 @@ class Human(ObstacleSim):
                      + curr_joint_position_rel_obs + curr_joint_velocity_rel_obs
                      + curr_joint_acceleration_rel_obs, dtype=np.float32)
 
-        kinematic_observation_forecast = np.core.umath.clip(kinematic_observation_forecast_not_clipped, -1, 1)
+        kinematic_observation_forecast = np.clip(kinematic_observation_forecast_not_clipped, -1, 1)
 
         return kinematic_observation_forecast
 
