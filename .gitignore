@@ -3,6 +3,8 @@ __pycache__/
 dist/
 build/
 safemotions.egg-info/
+original_checkpoint/
+algorithm_state.pkl
 
 *.pyc
 *.wrl
